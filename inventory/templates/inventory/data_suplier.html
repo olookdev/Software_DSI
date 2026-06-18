@@ -1,0 +1,283 @@
+{% extends 'inventory/base.html' %}
+
+{% block page_title %}Data Suplier{% endblock %}
+
+{% block content %}
+
+<div class="action-bar">
+    <div class="controls-group">
+        {% include 'components/search_bar.html' with placeholder_text="Cari Nama atau Kode Suplier........." %}
+        {% include 'components/btn_plus.html' with modal_id="tambahsuplier" %}
+    </div>
+    <div class="table-container-shadow">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">No</th>
+                    <th>Kode Suplier</th>
+                    <th>Nama Suplier</th>
+                    <th>Alamat </th>
+                    <th>No Telp </th>
+                    <th>Email</th> 
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in supliers %}
+                <tr class="row-suplier" 
+                    style="cursor: pointer;" 
+                    ondblclick="bukaModalEdit('{{ s.id }}', '{{ s.nama_suplier }}', '{{ s.alamat }}', '{{ s.telepon }}', '{{ s.email }}')">
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ s.kode_suplier }}</td>
+                    <td>{{ s.nama_suplier }}</td>
+                    <td>{{ s.alamat|default:"-" }}</td>
+                    <td>{{ s.telepon|default:"-" }}</td>
+                    <td>{{ s.email|default:"-" }}</td>
+                    <td class="text-center">
+                        <a href="javascript:void(0)" onclick="hapusSuplier('{{ s.id }}', '{{ s.nama_suplier|escapejs }}')" class="text-danger">
+                            <i class="bi bi-trash-fill"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">Belum ada data Suplier.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="tambahsuplier" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"> 
+        <div class="modal-content custom-modal-style">
+            <button type="button" class="custom-close-btn" data-bs-dismiss="modal">
+                <i class="bi bi-x-circle-fill"></i>
+            </button>
+            <div class="modal-body p-4">
+                <h2 class="text-center fw-bold mb-4">Tambah Suplier</h2>                        
+                <form action="" method="POST"> {% csrf_token %}
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Nama</label>
+                        <div class="col-sm-8">
+                            <input type="text" name="nama_suplier" class="form-control border-dark" required>
+                        </div>
+                    </div>
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Alamat</label>
+                        <div class="col-sm-8">
+                            <input type="text" name="alamat" class="form-control border-dark" required>
+                        </div>
+                    </div>
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">No Telp</label>
+                        <div class="col-sm-8">
+                            <input type="number" name="telepon" class="form-control border-dark" required>
+                        </div>
+                    </div>
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Email</label>
+                        <div class="col-sm-8">
+                            <input type="email" name="email" class="form-control border-dark">
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-center gap-3">
+                        <button type="submit" class="btn-tambah-modal">Tambah</button>
+                        <button type="reset" class="btn-hapus-modal">Reset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modaledit" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content custom-modal-style">
+            <div class="modal-body p-4">
+                <h2 class="text-center fw-bold mb-4">Edit Suplier</h2>
+                <form action="{% url 'edit_suplier' %}" method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="id_suplier" id="edit-id">
+                    
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Nama</label>
+                        <div class="col-sm-8">
+                            <input type="text" name="nama_suplier" id="edit-nama" class="form-control border-dark">
+                        </div>
+                    </div>
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Alamat</label>
+                        <div class="col-sm-8">
+                            <input type="text" name="alamat" id="edit-alamat" class="form-control border-dark">
+                        </div>
+                    </div>
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">No Telp</label>
+                        <div class="col-sm-8">
+                            <input type="text" name="telepon" id="edit-telepon" class="form-control border-dark">
+                        </div>
+                    </div>
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Email</label>
+                        <div class="col-sm-8">
+                            <input type="email" name="email" id="edit-email" class="form-control border-dark">
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-center gap-3">
+                        <button type="submit" class="btn-tambah-modal">Simpan Perubahan</button>
+                        <button type="button" class="btn-hapus-modal" data-bs-dismiss="modal">Batal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+    /* Baris 2: Action Bar */
+    .action-bar {
+        display: flex;
+        margin-bottom: 0px; /* Tambah jarak ke tabel */
+    }
+    .controls-group {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin: 20px 0px;
+    }
+
+    /* Baris 3: Tabel */
+    .table-container-shadow {
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
+        border: 1px solid #ddd;
+        width: 100%;
+        margin: 20px 0px;
+    }
+    .custom-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+    .custom-table thead {
+        background-color: #f0f2f8;
+        border-bottom: 2px solid #dee2e6;
+    }
+    .custom-table th {
+        padding: 12px 15px;
+        text-align: left;
+        font-weight: 600;
+        color: #333;
+    }
+    .custom-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #eee;
+        color: #555;
+    }
+    .custom-table tr:last-child td { 
+        border-bottom: none; 
+    }
+    .text-center { 
+        text-align: center !important; 
+    }
+
+    /* Styling Modal Box */
+    .custom-modal-style {
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    /* Tombol X Merah Melayang */
+    .custom-close-btn {
+        position: absolute;
+        top: -15px;
+        right: -15px;
+        background: white;
+        border: none;
+        color: #ff0000;
+        font-size: 32px;
+        line-height: 1;
+        border-radius: 50%;
+        z-index: 1060;
+        cursor: pointer;
+    }
+
+    /* Tombol Aksi */
+    .btn-tambah-modal {
+        background-color: #1A6B8D;
+        color: white;
+        border: none;
+        padding: 8px 35px;
+        border-radius: 25px;
+        font-weight: bold;
+    }
+
+    .btn-hapus-modal {
+        background-color: #8B0000;
+        color: white;
+        border: none;
+        padding: 8px 35px;
+        border-radius: 25px;
+        font-weight: bold;
+    }
+
+    /* Overlay Background Gelap (Otomatis dari Bootstrap) */
+    .modal-backdrop.show {
+        opacity: 0.6; /* Tingkat kegelapan background */
+    }
+
+    .custom-input-date, .custom-select {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        height: 38px;
+        padding: 0 10px;
+        font-size: 14px;
+        color: #666;
+        width: auto;
+    }
+</style>
+
+<script>
+function bukaModalEdit(id, nama, alamat, telp, email) {
+    // Masukkan data ke dalam input modal
+    document.getElementById('edit-id').value = id;
+    document.getElementById('edit-nama').value = nama;
+    document.getElementById('edit-alamat').value = alamat;
+    document.getElementById('edit-telepon').value = telp;
+    document.getElementById('edit-email').value = email;
+
+    // Tampilkan modal
+    var myModal = new bootstrap.Modal(document.getElementById('modaledit'));
+    myModal.show();
+}
+
+function hapusSuplier(id, namaSuplier) {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: 'Apakah Anda yakin?',
+            text: `Data supplier "${namaSuplier}" akan dihapus secara permanen dari sistem.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = `/suplier/hapus/${id}/`;
+            }
+        });
+    } else {
+        const konfirmasi = confirm(`Apakah Anda yakin ingin menghapus data supplier "${namaSuplier}"?`);
+        if (konfirmasi) {
+            window.location.href = `/suplier/hapus/${id}/`;
+        }
+    }
+}
+</script>
+{% endblock %}

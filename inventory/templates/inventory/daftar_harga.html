@@ -1,0 +1,910 @@
+{% extends 'inventory/base.html' %}
+{% load humanize %}
+
+{% block page_title %}Dafta Harga{% endblock %}
+
+{% block content %}
+<div class="tab-navigation-bar">
+    <ul class="nav nav-tabs border-0" role="tablist">
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="harga-stok-tab" data-bs-toggle="tab" data-bs-target="#harga-stok" type="button" role="tab">Harga Stok</button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="harga-jual-tab" data-bs-toggle="tab" data-bs-target="#harga-jual" type="button" role="tab">Harga Jual</button>
+        </li>
+    </ul>
+</div>
+
+<div class="tab-content" id="myTabContent">
+    <div class="tab-pane fade show active" id="harga-stok" role="tabpanel" aria-labelledby="harga-stok-tab">
+        <div class="action-bar">
+            <div class="controls-group">
+                {% include 'components/info_cards.html' with label="Stok Termahal" value="stiker 1 " %}
+                {% include 'components/info_cards.html' with label="Stok Termurah" value="Stiker 2" %}
+                {% include 'components/search_bar.html' with placeholder_text="Cari Nama atau Kode Barang........." %}
+                {% include 'components/btn_plus.html' with modal_id="tambahhargastok" %}
+            </div>
+            <div class="table-container-shadow">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">No</th>
+                            <th>Kode Barang</th>
+                            <th>Nama Barang</th>
+                            <th>Satuan</th>
+                            <th>Keterangan Barang</th>
+                            <th>Harga@</th> 
+                            <th>Suplier</th> 
+                            <th style="width: 40px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for h in harga_list %}
+                        <tr style="cursor: pointer;" 
+                            ondblclick="bukaModalEdit('{{ h.id }}', '{{ h.barang.id }}', '{{ h.suplier.id }}', '{{ h.harga_satuan }}')">
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ h.barang.kode_barang }}</td>
+                            <td>{{ h.barang.nama_barang }}</td>
+                            <td>{{ h.barang.satuan }}</td>
+                            <td>{{ h.barang.keterangan|default:"-" }}</td>
+                            <td>Rp {{ h.harga_satuan|floatformat:0|intcomma }}</td>
+                            <td>{{ h.suplier.nama_suplier }}</td>
+                            <td class="text-center">
+                                <a href="{% url 'hapus_harga' h.id %}" 
+                                onclick="event.stopPropagation(); return confirm('Apakah Anda yakin ingin menghapus...')"
+                                class="text-danger">
+                                    <i class="bi bi-trash-fill"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center">Belum ada data harga dari suplier.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div> 
+    
+    <div class="tab-pane fade" id="harga-jual" role="tabpanel" aria-labelledby="harga-jual-tab">
+        <div class="action-bar">
+            <div class="controls-group">
+                {% include 'components/info_cards.html' with label="Barang Termahal" value="stiker 1" %}
+                {% include 'components/info_cards.html' with label="Barang Termurah" value="Stiker 2" %}
+                {% include 'components/search_bar.html' with placeholder_text="Cari..." %}
+                {% include 'components/btn_plus.html' with modal_id="tambahhargajual" %}
+            </div>
+            <div class="table-container-shadow">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Kode Produk</th> 
+                            <th>Nama Produk</th>
+                            <th>Bahan Baku & Ket.</th> 
+                            <th>Ket. Produk</th>
+                            <th>Tenaga</th>
+                            <th>Listrik</th> 
+                            <th>Total Modal</th> 
+                            <th>Harga Jual</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for hj in harga_jual_list %}
+                    <tr style="cursor: pointer;" 
+                        id="baris-jual-{{ hj.id }}"
+                        data-id="{{ hj.id }}"
+                        data-nama="{{ hj.nama_produk|escapejs }}"
+                        data-tenaga="{{ hj.biaya_tenaga_kerja }}"
+                        data-listrik="{{ hj.biaya_listrik }}"
+                        data-keterangan="{{ hj.keterangan_produk|escapejs }}"
+                        data-jual="{{ hj.harga_jual_akhir }}"
+                        data-bahan='[
+                            {% for b in hj.list_bahan.all %}
+                            {"id": "{{ b.barang.id }}", "nama": "{{ b.barang.nama_barang|escapejs }}", "harga": "{{ b.harga_stok_terpilih.harga_satuan|floatformat:0 }}"}{% if not forloop.last %},{% endif %}
+                            {% endfor %}
+                        ]'
+                        ondblclick="pemicuModalEditJual(this)">
+                            <td>{{ forloop.counter }}</td>
+                            
+                            <td class="fw-bold text-secondary">{{ hj.kode_produk|default:"-" }}</td>
+                            
+                            <td><strong>{{ hj.nama_produk }}</strong></td>
+                            
+                            <td>
+                                {% for b in hj.list_bahan.all %}
+                                    • {{ b.barang.nama_barang }} <span class="text-muted">({{ b.barang.kode_barang }})</span><br>
+                                {% empty %}-{% endfor %}
+                            </td>
+                            
+                            <td>{{ hj.keterangan_produk|default:"-" }}</td>
+                            <td>Rp {{ hj.biaya_tenaga_kerja|floatformat:0|intcomma }}</td>
+                            <td>Rp {{ hj.biaya_listrik|floatformat:0|intcomma }}</td>
+                            <td class="fw-bold text-primary">Rp {{ hj.total_modal|floatformat:0|intcomma }}</td>
+                            <td class="text-success fw-bold">
+                                Rp {{ hj.harga_jual_akhir|floatformat:0|intcomma }}
+                                <small class="d-block text-muted fw-normal" style="font-size: 0.75rem;">
+                                    Profit: <span class="text-success">{{ hj.laba_persen|floatformat:1 }}%</span>
+                                </small>
+                            </td>
+                            <td class="text-center">
+                                <a href="{% url 'hapus_harga_jual' hj.id %}" onclick="event.stopPropagation(); return confirm('Yakin menghapus?')" class="btn btn-sm btn-outline-danger border-0">
+                                    <i class="bi bi-trash-fill"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="10" class="text-center text-muted">Belum ada data harga jual.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>  
+</div>
+
+<div class="modal fade" id="tambahhargastok" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"> 
+        <div class="modal-content custom-modal-style">
+            <button type="button" class="custom-close-btn" data-bs-dismiss="modal">
+                <i class="bi bi-x-circle-fill"></i>
+            </button>
+            <div class="modal-body p-4">
+                <h2 class="text-center fw-bold mb-4">Tambah Harga Stok</h2>                        
+                <form action="{% url 'daftar_harga' %}" method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Barang</label>
+                        <div class="col-sm-8">
+                            <select name="barang" id="add-select-barang" class="form-select border-dark" onchange="updateDataBarang()" required>
+                                <option value="">-- Pilih Barang --</option>
+                                {% for b in barang_data %}
+                                    <option 
+                                        value="{{ b.id }}"
+                                        data-kode="{{ b.kode_barang }}"
+                                        data-jenis="{{ b.jenis.nama|default:'-' }}"
+                                        data-ukuran="{{ b.ukuran|default:'-' }}"
+                                        data-satuan="{{ b.satuan|escapejs }}">
+                                        {{ b.kode_barang }} - {{ b.nama_barang }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">*Data diambil dari Master Stok</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row id-info-barang" style="display: none;">
+                        <label class="col-sm-4 col-form-label text-muted">Detail Barang</label>
+                        <div class="col-sm-8 text-muted">
+                            <span id="info-jenis-barang"></span> | 
+                            <span id="info-ukuran-barang"></span> | 
+                            <span id="info-satuan-barang"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Harga Satuan (@)</label>
+                        <div class="col-sm-8">
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-dark">Rp</span>
+                                <input type="number" name="harga_satuan" class="form-control border-dark" placeholder="0" min="0" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Supplier</label>
+                        <div class="col-sm-8">
+                            <select class="form-select border-dark" name="suplier" required>
+                                <option value="">-- Pilih Supplier --</option>
+                                {% for s in semua_suplier %}
+                                <option value="{{ s.id }}">{{ s.nama_suplier }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-center gap-3">
+                        <button type="submit" class="btn-tambah-modal">Simpan Harga</button>
+                        <button type="reset" class="btn-hapus-modal" onclick="tutupInfoBarang()">Reset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editHargaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content custom-modal-style">
+            <div class="modal-body p-4">
+                <h2 class="text-center fw-bold mb-4">Edit Harga Barang</h2>
+                <form action="{% url 'edit_harga_stok' %}" method="POST">
+                    {% csrf_token %}
+                    
+                    <input type="hidden" name="id_harga" id="edit-stok-id-harga">
+                    
+                    <div class="mb-3">
+                        <label class="fw-bold">Pilih Barang</label>
+                        <select name="barang" id="edit-stok-barang" class="form-control border-dark" required>
+                            {% for b in semua_barang %}
+                            <option value="{{ b.id }}">{{ b.nama_barang }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="fw-bold">Pilih Suplier</label>
+                        <select name="suplier" id="edit-stok-suplier" class="form-control border-dark" required>
+                            {% for s in semua_suplier %}
+                            <option value="{{ s.id }}">{{ s.nama_suplier }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="fw-bold">Harga Satuan (@)</label>
+                        <input type="number" name="harga_satuan" id="edit-stok-harga" class="form-control border-dark" step="0.01" required>
+                    </div>
+
+                    <div class="d-flex justify-content-center gap-3">
+                        <button type="submit" class="btn-tambah-modal">Simpan</button>
+                        <button type="button" class="btn-hapus-modal" data-bs-dismiss="modal">Batal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="tambahhargajual" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content custom-modal-style">
+            <button type="button" class="custom-close-btn" data-bs-dismiss="modal"><i class="bi bi-x-circle-fill"></i></button>
+            <div class="modal-body p-4">
+                <h2 class="text-center fw-bold mb-4">Set Harga Jual Produk</h2>
+                <form action="{% url 'daftar_harga_jual' %}" method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="fw-bold">Nama Produk Jual</label>
+                        <input type="text" name="nama_produk" id="add-nama-produk" class="form-control border-dark" required placeholder="Contoh: Stiker + Foamboard">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="fw-bold d-block mb-2">Bahan Baku yang Digunakan:</label>
+                        
+                        <div id="wadah-baris-bahan">
+                            <div class="row g-2 mb-2 baris-bahan-item">
+                                <div class="col-8">
+                                    <input type="text" class="form-control border-dark input-ketik-bahan" 
+                                        list="opsi-datalist-barang" 
+                                        placeholder="Ketik nama bahan di sini..." 
+                                        oninput="handlePilihBahan(this)">
+                                    
+                                    <input type="hidden" name="bahan_terpilih" class="hidden-id-bahan">
+                                </div>
+                                <div class="col-3">
+                                    <input type="text" class="form-control bg-light text-center view-harga-satuan-bahan" placeholder="Rp 0" readonly>
+                                </div>
+                                <div class="col-1">
+                                    <button type="button" class="btn btn-outline-danger w-100" onclick="hapusBarisBahan(this)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-1" onclick="tambahBarisBahanBaru()">
+                            <i class="bi bi-plus-circle"></i> Tambah Bahan
+                        </button>
+                    </div>
+
+                    <datalist id="opsi-datalist-barang">
+                        {% for b in barang_data %}
+                            <option data-id="{{ b.id }}" data-harga="{{ b.harga|floatformat:0 }}" value="{{ b.nama_barang }}">
+                                Harga Modal: Rp {{ b.harga|floatformat:0 }}
+                            </option>
+                        {% endfor %}
+                    </datalist>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="fw-bold">Biaya Tenaga</label>
+                            <input type="number" name="biaya_tenaga" id="add-tenaga" class="form-control border-dark" value="0" oninput="hitungKalkulasiTotal()">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="fw-bold">Biaya Listrik</label>
+                            <input type="number" name="biaya_listrik" id="add-listrik" class="form-control border-dark" value="0" oninput="hitungKalkulasiTotal()">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="fw-bold text-success">Harga Jual Akhir (Rp)</label>
+                        <input type="number" name="harga_jual_akhir" id="add-harga-jual" class="form-control border-dark fw-bold text-success" value="0" oninput="hitungKalkulasiTotal()" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="fw-bold">Keterangan / Catatan</label>
+                        <textarea name="keterangan_produk" class="form-control border-dark" rows="2"></textarea>
+                    </div>
+
+                    <div class="p-3 bg-light rounded border">
+                        <div class="row text-center">
+                            <div class="col-4 border-end">
+                                <span class="text-muted small d-block">Total HPP (Modal):</span>
+                                <span class="fw-bold text-dark" id="display-hpp">Rp 0</span>
+                            </div>
+                            <div class="col-4 border-end">
+                                <span class="text-muted small d-block">Margin (Laba):</span>
+                                <span class="fw-bold text-primary" id="display-margin-nominal">Rp 0</span>
+                            </div>
+                            <div class="col-4">
+                                <span class="text-muted small d-block">Persentase Laba:</span>
+                                <span class="fw-bold text-success" id="display-margin-persen">0%</span>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <div class="d-flex justify-content-center">
+                        <button type="submit" class="btn-tambah-modal">Simpan Harga Jual</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editHargaJualModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square text-warning"></i> Edit Produk Jual</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{% url 'edit_harga_jual' %}" method="POST">
+                {% csrf_token %}
+                
+                <input type="hidden" name="id_harga_jual" id="edit-id-harga-jual">
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="fw-bold mb-1">Nama Produk Jual</label>
+                        <input type="text" name="nama_produk" id="edit-nama-produk" class="form-control border-dark" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="fw-bold d-block mb-2">Bahan Baku yang Digunakan:</label>
+                        
+                        <div id="wadah-edit-baris-bahan">
+                            </div>
+
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-1" onclick="tambahBarisBahanEditBaru('', '', '')">
+                            <i class="bi bi-plus-circle"></i> Tambah Komponen Bahan
+                        </button>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="fw-bold mb-1">Biaya Tenaga</label>
+                            <input type="number" name="biaya_tenaga" id="edit-tenaga" class="form-control border-dark" oninput="hitungKalkulasiTotalEdit()">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="fw-bold mb-1">Biaya Listrik</label>
+                            <input type="number" name="biaya_listrik" id="edit-listrik" class="form-control border-dark" oninput="hitungKalkulasiTotalEdit()">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="fw-bold text-success mb-1">Harga Jual Akhir (Rp)</label>
+                        <input type="number" name="harga_jual_akhir" id="edit-harga-jual" class="form-control border-dark fw-bold text-success" oninput="hitungKalkulasiTotalEdit()" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="fw-bold mb-1">Keterangan / Catatan Produk</label>
+                        <textarea name="keterangan_produk" id="edit-keterangan-produk" class="form-control border-dark" rows="2"></textarea>
+                    </div>
+
+                    <div class="p-3 bg-light rounded border">
+                        <div class="row text-center">
+                            <div class="col-4 border-end">
+                                <span class="text-muted small d-block">Total HPP (Modal):</span>
+                                <span class="fw-bold text-dark" id="edit-display-hpp">Rp 0</span>
+                            </div>
+                            <div class="col-4 border-end">
+                                <span class="text-muted small d-block">Margin (Laba):</span>
+                                <span class="fw-bold text-primary" id="edit-display-margin-nominal">Rp 0</span>
+                            </div>
+                            <div class="col-4">
+                                <span class="text-muted small d-block">Persentase Laba:</span>
+                                <span class="fw-bold text-success" id="edit-display-margin-persen">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-warning fw-bold text-dark">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .tab-navigation-bar {
+        border-bottom: 3px solid #c8c8c8;
+        margin-bottom: 15px;
+    }
+    .nav-tabs-wrapper { 
+        display: flex; 
+    }
+    .nav-link {
+        width: 150px; 
+        height: 45px;
+        background: transparent; 
+        color: #888;
+        font-size: 18px;
+        border: none; 
+        font-weight: 600;
+        cursor: pointer; 
+        position: relative;
+    }
+
+    .nav-link.active {
+        color: #000 !important;
+        font-weight: bold;
+    }    
+    
+    .nav-link.active::after {
+        content: ""; 
+        position: absolute;
+        bottom: -3px; 
+        left: 0; 
+        width: 100%;
+        height: 3px; 
+        background-color: #FF7E3E;
+    }
+    .nav-link:hover {
+        color: #555;
+    }
+
+    .action-bar {
+        display: flex;
+        margin-bottom: 0px; 
+    }
+    .controls-group {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin: 20px 0px;
+    }
+
+    .table-container-shadow {
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
+        border: 1px solid #ddd;
+        width: 100%;
+        margin: 20px 0px;
+    }
+    .custom-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+    .custom-table thead {
+        background-color: #f0f2f8;
+        border-bottom: 2px solid #dee2e6;
+    }
+    .custom-table th {
+        padding: 12px 15px;
+        text-align: left;
+        font-weight: 600;
+        color: #333;
+    }
+    .custom-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #eee;
+        color: #555;
+    }
+    .custom-table tr:last-child td { 
+        border-bottom: none; 
+    }
+    .text-center { 
+        text-align: center !important; 
+    }
+
+    .custom-modal-style {
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .custom-close-btn {
+        position: absolute;
+        top: -15px;
+        right: -15px;
+        background: white;
+        border: none;
+        color: #ff0000;
+        font-size: 32px;
+        line-height: 1;
+        border-radius: 50%;
+        z-index: 1060;
+        cursor: pointer;
+    }
+
+    .btn-tambah-modal {
+        background-color: #1A6B8D;
+        color: white;
+        border: none;
+        padding: 8px 35px;
+        border-radius: 25px;
+        font-weight: bold;
+    }
+
+    .btn-hapus-modal {
+        background-color: #8B0000;
+        color: white;
+        border: none;
+        padding: 8px 35px;
+        border-radius: 25px;
+        font-weight: bold;
+    }
+
+    .modal-backdrop.show {
+        opacity: 0.6;
+    }
+
+    .custom-input-date, .custom-select {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        height: 38px;
+        padding: 0 10px;
+        font-size: 14px;
+        color: #666;
+        width: auto;
+    }
+    
+    .tab-pane.fade {
+        transition: opacity 0.15s linear;
+    }
+
+    .tab-pane:not(.active) {
+        display: none !important;
+    }
+
+    .tab-pane.active {
+        display: block !important;
+    }
+    
+    .tab-content > .tab-pane:not(.active) {
+        display: none !important;
+    }
+
+    .tab-content > .tab-pane.active {
+        display: block !important;
+    }
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const hash = window.location.hash;
+    if (hash) {
+        const tabTriggerEl = document.querySelector(`button[data-bs-target="${hash}"]`);
+        if (tabTriggerEl) {
+            const tab = new bootstrap.Tab(tabTriggerEl);
+            tab.show();
+        }
+    }
+});
+
+// =========================================================================
+// 1. LOGIKA UTAMA MODAL TAMBAH (DYNAMIC ROWS & REALTIME METRICS)
+// =========================================================================
+function handlePilihBahan(inputElement) {
+    const val = inputElement.value;
+    const datalist = document.getElementById('opsi-datalist-barang');
+    const options = datalist.getElementsByTagName('option');
+    
+    const rowParent = inputElement.closest('.baris-bahan-item');
+    const hiddenInputId = rowParent.querySelector('.hidden-id-bahan');
+    const viewHargaElement = rowParent.querySelector('.view-harga-satuan-bahan');
+
+    let hrg = 0;
+    let idBarang = "";
+
+    for (let i = 0; i < options.length; i++) {
+        if (options[i].value === val) {
+            idBarang = options[i].getAttribute('data-id');
+            hrg = parseFloat(options[i].getAttribute('data-harga')) || 0;
+            break;
+        }
+    }
+
+    hiddenInputId.value = idBarang; 
+    viewHargaElement.value = hrg > 0 ? "Rp " + hrg.toLocaleString('id-ID') : "";
+    viewHargaElement.setAttribute('data-harga-aktif', hrg);
+
+    hitungKalkulasiTotal();
+}
+
+function tambahBarisBahanBaru() {
+    const wadah = document.getElementById('wadah-baris-bahan');
+    const barisBaruHTML = `
+        <div class="row g-2 mb-2 baris-bahan-item">
+            <div class="col-8">
+                <input type="text" class="form-control border-dark input-ketik-bahan" 
+                       list="opsi-datalist-barang" 
+                       placeholder="Ketik nama bahan di sini..." 
+                       oninput="handlePilihBahan(this)">
+                <input type="hidden" name="bahan_terpilih" class="hidden-id-bahan">
+            </div>
+            <div class="col-3">
+                <input type="text" class="form-control bg-light text-center view-harga-satuan-bahan" placeholder="Rp 0" readonly>
+            </div>
+            <div class="col-1">
+                <button type="button" class="btn btn-outline-danger w-100" onclick="hapusBarisBahan(this)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    wadah.insertAdjacentHTML('beforeend', barisBaruHTML);
+}
+
+function hapusBarisBahan(btnElement) {
+    const wadah = document.getElementById('wadah-baris-bahan');
+    if (wadah.getElementsByClassName('baris-bahan-item').length > 1) {
+        btnElement.closest('.baris-bahan-item').remove();
+        hitungKalkulasiTotal();
+    } else {
+        alert("Produk minimal harus memiliki 1 komponen bahan baku.");
+    }
+}
+
+// =========================================================================
+// 2. LOGIKA UTAMA MODAL EDIT (DOUBLE CLICK ACTION & SEPARATE METRICS)
+// =========================================================================
+function pemicuModalEditJual(rowElement) {
+    const id = rowElement.getAttribute('data-id');
+    const nama = rowElement.getAttribute('data-nama');
+    const tenaga = rowElement.getAttribute('data-tenaga');
+    const listrik = rowElement.getAttribute('data-listrik');
+    const keterangan = rowElement.getAttribute('data-keterangan');
+    const hargaJual = rowElement.getAttribute('data-jual');
+    
+    const stringBahan = rowElement.getAttribute('data-bahan');
+    let listBahanArray = [];
+    try {
+        listBahanArray = JSON.parse(stringBahan);
+    } catch (e) {
+        console.error("Gagal parse data JSON bahan:", e);
+    }
+
+    bukaModalEditJual(id, nama, tenaga, listrik, keterangan, hargaJual, listBahanArray);
+}
+
+function bukaModalEditJual(id, nama, tenaga, listrik, keterangan, hargaJual, listBahanArray) {
+    // Set field induk modal edit
+    document.getElementById('edit-id-harga-jual').value = id;
+    document.getElementById('edit-nama-produk').value = nama;
+    document.getElementById('edit-tenaga').value = parseInt(parseFloat(tenaga)) || 0;
+    document.getElementById('edit-listrik').value = parseInt(parseFloat(listrik)) || 0;
+    document.getElementById('edit-keterangan-produk').value = keterangan;
+    document.getElementById('edit-harga-jual').value = parseInt(parseFloat(hargaJual)) || 0;
+
+    // Bersihkan wadah edit lama
+    const wadah = document.getElementById('wadah-edit-baris-bahan');
+    wadah.innerHTML = "";
+
+    // Inject data bahan bawaannya
+    if (listBahanArray && listBahanArray.length > 0) {
+        listBahanArray.forEach(function(b) {
+            tambahBarisBahanEditBaru(b.id, b.nama, b.harga);
+        });
+    } else {
+        tambahBarisBahanEditBaru('', '', '');
+    }
+
+    hitungKalkulasiTotalEdit();
+
+    // Show modal Bootstrap
+    const modalEdit = new bootstrap.Modal(document.getElementById('editHargaJualModal'));
+    modalEdit.show();
+}
+
+function handlePilihBahanEdit(inputElement) {
+    const val = inputElement.value;
+    const datalist = document.getElementById('opsi-datalist-barang');
+    const options = datalist.getElementsByTagName('option');
+    
+    const rowParent = inputElement.closest('.baris-bahan-edit-item');
+    const hiddenInputId = rowParent.querySelector('.hidden-id-bahan');
+    const viewHargaElement = rowParent.querySelector('.view-harga-satuan-bahan');
+
+    let hrg = 0;
+    let idBarang = "";
+
+    for (let i = 0; i < options.length; i++) {
+        if (options[i].value === val) {
+            idBarang = options[i].getAttribute('data-id');
+            hrg = parseFloat(options[i].getAttribute('data-harga')) || 0;
+            break;
+        }
+    }
+
+    hiddenInputId.value = idBarang; 
+    viewHargaElement.value = hrg > 0 ? "Rp " + hrg.toLocaleString('id-ID') : "";
+    viewHargaElement.setAttribute('data-harga-aktif', hrg);
+
+    hitungKalkulasiTotalEdit();
+}
+
+function tambahBarisBahanEditBaru(idBahan = '', namaBahan = '', hargaBahan = '') {
+    const wadah = document.getElementById('wadah-edit-baris-bahan');
+    const hargaFormat = hargaBahan ? "Rp " + parseInt(hargaBahan).toLocaleString('id-ID') : "";
+    
+    const barisHTML = `
+        <div class="row g-2 mb-2 baris-bahan-edit-item">
+            <div class="col-8">
+                <input type="text" class="form-control border-dark input-ketik-bahan" 
+                       list="opsi-datalist-barang" 
+                       placeholder="Ketik nama bahan di sini..." 
+                       value="${namaBahan}"
+                       oninput="handlePilihBahanEdit(this)">
+                <input type="hidden" name="bahan_terpilih" class="hidden-id-bahan" value="${idBahan}">
+            </div>
+            <div class="col-3">
+                <input type="text" class="form-control bg-light text-center view-harga-satuan-bahan" 
+                       placeholder="Rp 0" 
+                       value="${hargaFormat}" 
+                       data-harga-aktif="${hargaBahan || 0}" 
+                       readonly>
+            </div>
+            <div class="col-1">
+                <button type="button" class="btn btn-outline-danger w-100" onclick="hapusBarisBahanEdit(this)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    wadah.insertAdjacentHTML('beforeend', barisHTML);
+}
+
+function hapusBarisBahanEdit(btnElement) {
+    const wadah = document.getElementById('wadah-edit-baris-bahan');
+    if (wadah.getElementsByClassName('baris-bahan-edit-item').length > 1) {
+        btnElement.closest('.baris-bahan-edit-item').remove();
+        hitungKalkulasiTotalEdit();
+    } else {
+        alert("Produk minimal harus memiliki 1 komponen bahan baku.");
+    }
+}
+
+function hitungKalkulasiTotalEdit() {
+    let totalHargaBahan = 0;
+    const seluruhHargaBahan = document.querySelectorAll('#wadah-edit-baris-bahan .view-harga-satuan-bahan');
+    
+    seluruhHargaBahan.forEach(function(inputHarga) {
+        totalHargaBahan += parseFloat(inputHarga.getAttribute('data-harga-aktif')) || 0;
+    });
+
+    const biayaTenaga = parseFloat(document.getElementById('edit-tenaga').value) || 0;
+    const biayaListrik = parseFloat(document.getElementById('edit-listrik').value) || 0;
+
+    const totalHPP = totalHargaBahan + biayaTenaga + biayaListrik;
+    document.getElementById('edit-display-hpp').innerText = "Rp " + totalHPP.toLocaleString('id-ID');
+
+    const hargaJual = parseFloat(document.getElementById('edit-harga-jual').value) || 0;
+    let marginNominal = hargaJual - totalHPP;
+    let marginPersen = hargaJual > 0 ? (marginNominal / hargaJual) * 100 : 0;
+
+    document.getElementById('edit-display-margin-nominal').innerText = "Rp " + marginNominal.toLocaleString('id-ID');
+    
+    const displayPersen = document.getElementById('edit-display-margin-persen');
+    displayPersen.innerText = marginPersen.toFixed(1) + "%";
+    displayPersen.className = marginNominal < 0 ? "fw-bold text-danger" : "fw-bold text-success";
+}
+
+function updateDataBarang() {
+    const selectBarang = document.getElementById('add-select-barang-jual');
+    if (!selectBarang) return;
+
+    const selectedOption = selectBarang.options[selectBarang.selectedIndex];
+    
+    const viewKode = document.getElementById('view-kode-stok');
+    const viewKet = document.getElementById('view-ket-stok');
+    const viewHargaBahan = document.getElementById('view-harga-bahan');
+    const hiddenIdHargaStok = document.getElementById('id-harga-stok-hidden');
+
+    // Cek value select secara bersih tanpa spasi
+    const valueTerpilih = selectBarang.value ? selectBarang.value.toString().trim() : "";
+
+    if (valueTerpilih === "") {
+        if(viewKode) viewKode.value = "-";
+        if(viewKet) viewKet.value = "";
+        if(viewHargaBahan) viewHargaBahan.value = "0";
+        if(hiddenIdHargaStok) hiddenIdHargaStok.value = "";
+        hitungTotalHPP();
+        return;
+    }
+
+    // Ambil atribut murni dari tag <option> HTML
+    const kode = (selectedOption.getAttribute('data-kode') || '-').trim();
+    const keterangan = (selectedOption.getAttribute('data-ket') || '-').trim();
+    const hargaRaw = selectedOption.getAttribute('data-harga');
+    const hargaBahan = parseFloat(hargaRaw) || 0;
+    const idHargaStok = (selectedOption.getAttribute('data-idstok') || '').trim();
+
+    // Debugging langsung ke console browser (F12)
+    console.log("LOG KLIK -> ID Barang:", valueTerpilih);
+    console.log("LOG KLIK -> Atribut data-harga mentah:", hargaRaw);
+    console.log("LOG KLIK -> Angka Parsed:", hargaBahan);
+
+    // Masukkan data ke element input modal secara realtime
+    if (viewKode) viewKode.value = kode;
+    if (viewKet) viewKet.value = keterangan;
+    
+    if (viewHargaBahan) {
+        // Menampilkan angka dengan format ribuan rupiah (contoh: 100.000)
+        viewHargaBahan.value = hargaBahan.toLocaleString('id-ID');
+    }
+    if (hiddenIdHargaStok) hiddenIdHargaStok.value = idHargaStok;
+
+    // Hitung akumulasi HPP bersama biaya tenaga & listrik
+    hitungTotalHPP();
+}
+
+function hitungTotalHPP() {
+    const selectBarang = document.getElementById('add-select-barang-jual');
+    let hargaBahan = 0;
+
+    if (selectBarang && selectBarang.value !== "") {
+        const selectedOption = selectBarang.options[selectBarang.selectedIndex];
+        hargaBahan = parseFloat(selectedOption.getAttribute('data-harga')) || 0;
+    }
+
+    const biayaTenaga = parseFloat(document.getElementById('add-tenaga').value) || 0;
+    const biayaListrik = parseFloat(document.getElementById('add-listrik').value) || 0;
+
+    const totalHPP = hargaBahan + biayaTenaga + biayaListrik;
+
+    const hppDisplay = document.getElementById('add-total-hpp');
+    if (hppDisplay) {
+        hppDisplay.innerText = totalHPP.toLocaleString('id-ID');
+    }
+}
+
+function tutupInfoBarang() {
+    const infoBarang = document.querySelector('.id-info-barang');
+    if (infoBarang) infoBarang.style.display = 'none';
+}
+
+
+function bukaModalEdit(idHarga, idBarang, idSuplier, hargaSatuan) {
+    // Jalur distribusi data dari tabel ke ID element modal yang benar
+    document.getElementById('edit-stok-id-harga').value = idHarga;
+    document.getElementById('edit-stok-barang').value = idBarang;
+    document.getElementById('edit-stok-suplier').value = idSuplier;
+    
+    // Parse nominal harga agar masuk sebagai angka bulat bersih ke input type="number"
+    document.getElementById('edit-stok-harga').value = parseInt(parseFloat(hargaSatuan)) || 0;
+
+    // Tampilkan modal setelah data selesai didistribusikan
+    const modalStokElement = document.getElementById('editHargaModal');
+    const modalStok = new bootstrap.Modal(modalStokElement);
+    modalStok.show();
+}
+</script>
+
+{% endblock %}

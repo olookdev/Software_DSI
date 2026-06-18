@@ -1,0 +1,470 @@
+{% extends 'inventory/base.html' %}
+
+{% block page_title %}List Stok{% endblock %}
+
+{% block content %}
+<div class="tab-navigation-bar">
+    <div class="nav-tabs-wrapper">
+        <a href="{% url 'list_stok' %}" 
+           class="nav-link {% if request.resolver_match.url_name == 'list_stok' %}active{% endif %}" 
+           id="data-stok-tab">
+           Data Stok
+        </a>    
+        
+        <a href="{% url 'log_arus_stok' %}" 
+           class="nav-link {% if request.resolver_match.url_name == 'log_arus_stok' %}active{% endif %}" 
+           id="arus-stok-tab">
+           Arus Stok
+        </a>
+        
+        <a href="#" 
+           class="nav-link {% if request.resolver_match.url_name == 'stok_opname' %}active{% endif %}" 
+           id="stok-opname-tab">
+           Stok Opname
+        </a>
+    </div>
+</div>
+
+<div class="tab-content" id="myTabContent">
+
+    {% if tab_aktif == 'list' %}
+    <div class="tab-pane fade show active" id="data-stok" role="tabpanel">
+        <div class="action-bar">
+            <div class="controls-group">
+                {% include 'components/info_cards.html' with label="Total Seluruh Barang" value=total_seluruh_stok %}
+                {% include 'components/info_cards.html' with label="Stok Terbanyak" value=pemakaian_terbanyak %}
+                {% include 'components/search_bar.html' with placeholder_text="Cari Nama atau Kode Barang........." %}
+                {% include 'components/btn_plus.html' with modal_id="tambahStokModal" %}
+            </div>
+            <div class="table-container-shadow">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">No</th>
+                            <th>Kode Barang</th>
+                            <th>Nama Barang</th>
+                            <th>Jenis</th> 
+                            <th>Satuan</th>
+                            <th>Ukuran</th> 
+                            <th>Keterangan Barang</th>
+                            <th class="text-center">QTY</th> 
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in stok_barang %}
+                        <tr style="cursor: pointer;" 
+                            ondblclick="bukaModalEdit('{{ s.id }}','{{ s.nama_barang|escapejs }}','{{ s.jenis.id|default:0 }}','{{ s.satuan|escapejs }}','{{ s.ukuran|escapejs }}','{{ s.keterangan|escapejs }}','{{ s.qty }}')">
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ s.kode_barang }}</td>
+                            <td>{{ s.nama_barang }}</td>
+                            <td>{{ s.jenis.nama|default:"-" }}</td>
+                            <td>{{ s.satuan|default:"-" }}</td>
+                            <td>{{ s.ukuran|default:"-" }}</td>
+                            <td>{{ s.keterangan|default:"-" }}</td>
+                            <td class="text-center">{{ s.qty }}</td>
+                            <td class="text-center">
+                                <a href="javascript:void(0)" onclick="hapusStok('{{ s.id }}', '{{ s.nama_barang|escapejs }}')" class="text-danger">
+                                    <i class="bi bi-trash-fill"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center">Data stok belum ada.</td> </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div> 
+    {% endif %}
+
+    {% if tab_aktif == 'arus' %}
+    <div class="tab-pane fade show active" id="arus-stok" role="tabpanel">
+        <div class="action-bar">
+            </div>
+    </div>
+    {% endif %}
+
+    {% if tab_aktif == 'opname' %}
+    <div class="tab-pane fade show active" id="stok-opname" role="tabpanel">
+        <div class="action-bar">
+            </div>
+    </div>
+    {% endif %}
+</div>
+
+
+<div class="modal fade" id="tambahStokModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"> 
+        <div class="modal-content custom-modal-style">
+            <button type="button" class="custom-close-btn" data-bs-dismiss="modal">
+                <i class="bi bi-x-circle-fill"></i>
+            </button>
+            <div class="modal-body p-4">
+                <h2 class="text-center fw-bold mb-4">Tambah Barang</h2>                        
+                <form action="{% url 'list_stok' %}" method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Nama Barang</label>
+                        <div class="col-sm-8">
+                            <input type="text" name="nama_barang" class="form-control border-dark" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Jenis</label>
+                        <div class="col-sm-8">
+                            <div class="input-group">
+                                <select name="jenis" class="form-select border-dark select-jenis-barang" required>
+                                    <option value="">Pilih Jenis...</option>
+                                    {% for j in semua_jenis %}
+                                    <option value="{{ j.id }}">{{ j.nama }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button class="btn btn-outline-dark" type="button" data-bs-toggle="modal" data-bs-target="#modalTambahJenis">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Satuan</label>
+                        <div class="col-sm-8">
+                            <input type="text" name="satuan" class="form-control border-dark" required placeholder="Contoh: Meter, Roll, Pcs">
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Ukuran</label>
+                        <div class="col-sm-8">
+                            <input type="text" name="ukuran" class="form-control border-dark" placeholder="Contoh: 100cm x 50m">
+                        </div>
+                    </div>
+
+                    <div class="mb-4 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Keterangan</label>
+                        <div class="col-sm-8">
+                            <textarea name="keterangan" class="form-control border-dark" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-center gap-3">
+                        <button type="submit" class="btn-tambah-modal">Tambah</button>
+                        <button type="reset" class="btn-hapus-modal">Reset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalTambahJenis" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-dark">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Tambah Jenis Baru</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Nama Jenis</label>
+                    <input type="text" id="input-jenis-baru" class="form-control border-dark" placeholder="Misal: Stiker, Spanduk">
+                </div>
+                <button type="button" class="btn btn-primary w-100" onclick="simpanJenisBaru()">Simpan Jenis</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editStokModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content custom-modal-style">
+            <button type="button" class="custom-close-btn" data-bs-dismiss="modal">
+                <i class="bi bi-x-circle-fill"></i>
+            </button>
+            <div class="modal-body p-4">
+                <h2 class="text-center fw-bold mb-4">Edit Barang</h2>
+                <form action="{% url 'edit_stok' %}" method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="id_barang" id="edit-id-stok">
+                    
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Nama Barang</label>
+                        <div class="col-sm-8">
+                            <input type="text" name="nama_barang" id="edit-nama-stok" class="form-control border-dark" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Jenis</label>
+                        <div class="col-sm-8">
+                            <select name="jenis" id="edit-jenis-stok" class="form-select border-dark select-jenis-barang" required>
+                                <option value="">Pilih Jenis...</option>
+                                {% for j in semua_jenis %}
+                                <option value="{{ j.id }}">{{ j.nama }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Satuan</label>
+                        <div class="col-sm-8">
+                            <input type="text" name="satuan" id="edit-satuan-stok" class="form-control border-dark" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Ukuran</label>
+                        <div class="col-sm-8">
+                            <input type="text" name="ukuran" id="edit-ukuran-stok" class="form-control border-dark" placeholder="Contoh: 100cm x 50m">
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Keterangan</label>
+                        <div class="col-sm-8">
+                            <textarea name="keterangan" id="edit-keterangan-stok" class="form-control border-dark" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 row">
+                        <label class="col-sm-4 col-form-label fw-bold">Stok Saat Ini</label>
+                        <div class="col-sm-8">
+                            <input type="text" id="edit-qty-stok" class="form-control bg-light border-dark" readonly>
+                            <small class="text-muted text-italic">*Stok hanya bisa berubah via transaksi</small>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-center gap-3">
+                        <button type="submit" class="btn-tambah-modal">Simpan Perubahan</button>
+                        <button type="button" class="btn-hapus-modal" data-bs-dismiss="modal">Batal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .tab-navigation-bar {
+        border-bottom: 3px solid #c8c8c8;
+        margin-bottom: 15px;
+    }
+    .nav-tabs-wrapper { 
+        display: flex; 
+    }
+    .nav-link {
+        width: 150px; 
+        height: 45px;
+        background: transparent; 
+        color: #888;
+        font-size: 18px;
+        border: none; 
+        font-weight: 600;
+        cursor: pointer; 
+        position: relative;
+    }
+    .nav-link.active {
+        color: #000 !important;
+        font-weight: bold;
+    }    
+    .nav-link.active::after {
+        content: ""; 
+        position: absolute;
+        bottom: -3px; 
+        left: 0; 
+        width: 100%;
+        height: 3px; 
+        background-color: #FF7E3E;
+    }
+    .nav-link:hover {
+        color: #555;
+    }
+    .action-bar {
+        display: flex;
+        margin-bottom: 0px;
+    }
+    .controls-group {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin: 20px 0px;
+    }
+    .table-container-shadow {
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
+        border: 1px solid #ddd;
+        width: 100%;
+        margin: 20px 0px;
+    }
+    .custom-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+    .custom-table thead {
+        background-color: #f0f2f8;
+        border-bottom: 2px solid #dee2e6;
+    }
+    .custom-table th {
+        padding: 12px 15px;
+        text-align: left;
+        font-weight: 600;
+        color: #333;
+    }
+    .custom-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #eee;
+        color: #555;
+    }
+    .custom-table tr:last-child td { 
+        border-bottom: none; 
+    }
+    .text-center { 
+        text-align: center !important; 
+    }
+    .custom-modal-style {
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .custom-close-btn {
+        position: absolute;
+        top: -15px;
+        right: -15px;
+        background: white;
+        border: none;
+        color: #ff0000;
+        font-size: 32px;
+        line-height: 1;
+        border-radius: 50%;
+        z-index: 1060;
+        cursor: pointer;
+    }
+    .btn-tambah-modal {
+        background-color: #1A6B8D;
+        color: white;
+        border: none;
+        padding: 8px 35px;
+        border-radius: 25px;
+        font-weight: bold;
+    }
+    .btn-hapus-modal {
+        background-color: #8B0000;
+        color: white;
+        border: none;
+        padding: 8px 35px;
+        border-radius: 25px;
+        font-weight: bold;
+    }
+    .modal-backdrop.show {
+        opacity: 0.6; 
+    }
+    .custom-input-date, .custom-select {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        height: 38px;
+        padding: 0 10px;
+        font-size: 14px;
+        color: #666;
+        width: auto;
+    }
+    .tab-pane.fade {
+        transition: opacity 0.15s linear;
+    }
+    .tab-pane:not(.active) {
+        display: none !important;
+    }
+    .tab-pane.active {
+        display: block !important;
+    }    
+    .tab-content > .tab-pane:not(.active) {
+        display: none !important;
+    }
+    .tab-content > .tab-pane.active {
+        display: block !important;
+    }
+</style>
+
+<script>
+// =========================================================================
+// 1. MODAL EDIT DATA BARANG (LIST STOK)
+// =========================================================================
+function bukaModalEdit(id, nama, jenisId, satuan, ukuran, keterangan, qty) {
+    const elId = document.getElementById('edit-id-stok');
+    const elNama = document.getElementById('edit-nama-stok');
+    const elJenis = document.getElementById('edit-jenis-stok');
+    const elSatuan = document.getElementById('edit-satuan-stok');
+    const elUkuran = document.getElementById('edit-ukuran-stok');
+    const elKet = document.getElementById('edit-keterangan-stok');
+    const elQty = document.getElementById('edit-qty-stok');
+
+    if(elId) elId.value = id;
+    if(elNama) elNama.value = nama;
+    if(elJenis) elJenis.value = jenisId;
+    if(elSatuan) elSatuan.value = satuan;
+    if(elUkuran) elUkuran.value = ukuran;
+    if(elKet) elKet.value = keterangan;
+    if(elQty) elQty.value = qty;
+
+    // Membuka modal edit Bootstrap secara programmatik saat baris tabel di-double click
+    var myModal = new bootstrap.Modal(document.getElementById('editStokModal'));
+    myModal.show();
+}
+
+// =========================================================================
+// 2. TAMBAH JENIS BARANG BARU VIA AJAX (MODAL IN-LINE)
+// =========================================================================
+function simpanJenisBaru() {
+    const namaJenis = document.getElementById('input-jenis-baru').value;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    if (!namaJenis) {
+        alert("Nama jenis tidak boleh kosong!");
+        return;
+    }
+
+    fetch("{% url 'tambah_jenis' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": csrfToken
+        },
+        body: `nama_jenis=${encodeURIComponent(namaJenis)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Memasukkan jenis baru ke semua komponen dropdown jenis barang secara instan tanpa refresh
+            const dropdowns = document.querySelectorAll('.select-jenis-barang');
+            dropdowns.forEach(select => {
+                const option = new Option(data.nama, data.id);
+                select.add(option);
+                select.value = data.id; 
+            });
+            
+            document.getElementById('input-jenis-baru').value = '';
+            alert("Jenis baru berhasil ditambahkan!");
+        } else {
+            alert("Error: " + data.message);
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+// =========================================================================
+// 3. AKSI HAPUS DATA BARANG
+// =========================================================================
+function hapusStok(id, nama) {
+    if (confirm("Apakah Anda yakin ingin menghapus stok barang: " + nama + "?")) {
+        window.location.href = "/stok/hapus/" + id + "/";
+    }
+}
+</script>
+{% endblock %}

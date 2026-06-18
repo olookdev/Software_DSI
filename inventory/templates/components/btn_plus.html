@@ -1,0 +1,29 @@
+<button type="button" 
+        class="btn-circle-primary" 
+        data-bs-toggle="modal" 
+        data-bs-target="#{{ modal_id }}">
+    <i class="bi bi-plus-lg"></i>
+</button>
+
+<style>
+    .btn-circle-primary {
+        background-color: #1A6B8D; 
+        color: white;
+        border: none; 
+        width: 35px; 
+        height: 35px;
+        border-radius: 50%; 
+        display: flex;
+        align-items: center; 
+        justify-content: center;
+        cursor: pointer;
+        transition: 0.3s;
+        margin-left: 10px;
+        margin-top: 18px;
+    }
+
+    .btn-circle-primary:hover {
+        background-color: #145570;
+        transform: scale(1.1);
+    }
+</style>

@@ -1,0 +1,29 @@
+<div class="info-card-item">
+    <input type="text" 
+           class="info-input-readonly" 
+           value="{{ label }} : {{ value }}" 
+           readonly>
+</div>
+
+<style>
+    .info-card-item {
+        display: flex;
+        align-items: center;
+    }
+
+    .info-input-readonly {
+        background-color: #ffffff; 
+        border: 1px solid #ced4da; 
+        border-radius: 6px; 
+        color: #444444; 
+        font-size: 13px;
+        font-weight: 500;
+        padding: 6px 15px; 
+        width: 250px;
+        min-width: 180px;
+        outline: none;
+        cursor: default;
+        margin-right: 5px;
+        width: 300px;
+    }
+</style>

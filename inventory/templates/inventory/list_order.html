@@ -1,0 +1,712 @@
+{% extends 'inventory/base.html' %}
+
+{% block content %}
+
+<div class="action-bar">
+    <div class="controls-group">
+        <input type="date" class="form-control custom-input-date" name="start_date">
+        <input type="date" class="form-control custom-input-date" name="end_date">
+        <select class="form-select custom-select" style="width: 200px;">
+            <option selected>Status</option>
+            <option value="order">Order</option>
+            <option value="proses">Proses</option>
+            <option value="selesai">Selesai</option>
+        </select>
+        {% include 'components/search_bar.html' with placeholder_text="Cari Nama Customer atau Kode Order........." %}
+        {% include 'components/btn_plus.html' with modal_id="tambahOrderModal" %}
+    </div>
+
+    <div class="controls-group" style="margin-top: 0px;">
+        {%include 'components/info_cards.html' with label="Total Order" value="Suplier 1 " %}
+        {%include 'components/info_cards.html' with label="Status Order" value="20" %}
+        {%include 'components/info_cards.html' with label="Status Proses" value="10" %}
+        {%include 'components/info_cards.html' with label="Status Selesai" value="40" %}
+    </div>
+
+    <div class="table-container-shadow">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">No</th>
+                    <th>Kode Order</th>
+                    <th>Tanggal Order</th>
+                    <th>Nama Customer</th>
+                    <th>No Telp</th>
+                    <th>Keterangan Order</th>
+                    <th class="text-center">Status</th> 
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="text-center-custom">1</td>
+                    <td>0001</td>
+                    <td>23-04-2026</td>
+                    <td>mas yog</td>
+                    <td>081919162898</td>
+                    <td>Keterangan Order</td>
+                    <td class="text-center-custom">
+                        <span class="badge-status badge-order">Order</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="text-center-custom">1</td>
+                    <td>0002</td>
+                    <td>23-04-2026</td>
+                    <td>mas yog</td>
+                    <td>081919162898</td>
+                    <td>Keterangan Order</td>
+                    <td class="text-center-custom">
+                        <span class="badge-status badge-proses">Proses</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="text-center-custom">1</td>
+                    <td>0002</td>
+                    <td>23-04-2026</td>
+                    <td>mas yog</td>
+                    <td>081919162898</td>
+                    <td>Keterangan Order</td>
+                    <td class="text-center-custom">
+                        <span class="badge-status badge-selesai">Selesai</span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="tambahOrderModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content custom-modal-style">
+            <button type="button" class="custom-close-btn" data-bs-dismiss="modal" aria-label="Close">
+                <i class="bi bi-x-circle-fill"></i>
+            </button>
+
+            <div class="modal-body p-4">
+                <h2 class="text-center fw-bold mb-4">Tambah Order</h2>
+                <form action="{% url 'tambah_order' %}" method="POST" id="formOrderUtama">
+                    {% csrf_token %}
+                    
+                    <input type="hidden" name="customer_id" id="id_customer_hidden" required>
+                    <input type="hidden" name="items_json" id="items_json">
+
+                    <div class="row">
+                        <div class="col-md-4 border-end">
+                            <div class="status-container p-2 mb-3 rounded shadow-sm" style="background-color: #A3FFAC;">
+                                <div class="row align-items-center">
+                                    <label class="col-sm-4 fw-bold">Status</label>
+                                    <div class="col-sm-8">
+                                        <select class="form-select form-select-sm border-dark" name="status">
+                                            <option value="order" selected>Order</option>
+                                            <option value="produksi">Proses</option>
+                                            <option value="selesai">Selesai</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex-input-group mb-2">
+                                <label class="fw-bold">No Order</label>
+                                <input type="text" id="modal_no_order" name="no_order" class="form-control form-control-sm border-dark bg-light" readonly>
+                            </div>
+
+                            <div class="flex-input-group mb-2">
+                                <label class="fw-bold">Tgl Order</label>
+                                <input type="date" class="form-control form-control-sm border-dark" name="tgl_order" id="tgl_order_input" required>
+                            </div>
+
+                            <div class="flex-input-group mb-2">
+                                <label class="fw-bold">Nama Customer</label>
+                                <input type="text" class="form-control form-control-sm border-dark" id="cari_customer" list="customer_list" placeholder="Ketik nama..." autocomplete="off" required>
+                                <datalist id="customer_list"></datalist>
+                            </div>
+
+                            <div class="flex-input-group mb-2">
+                                <label class="fw-bold">Kode Customer</label>
+                                <input type="text" class="form-control form-control-sm border-dark bg-light" id="kode_customer" readonly placeholder="-">
+                            </div>
+
+                            <div class="flex-input-group mb-2">
+                                <label class="fw-bold">Alamat</label>
+                                <input type="text" class="form-control form-control-sm border-dark bg-light" id="alamat_customer" readonly placeholder="-">
+                            </div>
+
+                            <div class="flex-input-group mb-2">
+                                <label class="fw-bold">No Telp</label>
+                                <input type="text" class="form-control form-control-sm border-dark bg-light" id="telp_customer" readonly placeholder="-">
+                            </div>
+
+                            <div class="flex-input-group mb-2">
+                                <label class="fw-bold">Nama order</label>
+                                <input type="text" class="form-control form-control-sm border-dark" name="nama_order" required>
+                            </div>
+                        </div>
+
+                        <div class="col-md-8">
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <div class="flex-input-group">
+                                        <label class="fw-bold">Nama item </label>
+                                        <input type="text" id="input_nama_item" class="form-control form-control-sm border-dark">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="flex-input-group">
+                                        <label class="fw-bold">Produk</label>
+                                        <input type="text" id="input_produk" list="produk_list" class="form-control form-control-sm border-dark">
+                                        <datalist id="produk_list"></datalist>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-2">
+                                <div class="col-md-12">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="d-flex align-items-center gap-2" style="width: 150px;">
+                                            <label class="fw-bold text-nowrap mb-0">Qty</label>
+                                            <input type="number" id="input_qty" class="form-control form-control-sm border-dark text-center" value="1" min="1">
+                                        </div>
+                                        <input type="number" id="input_p" class="form-control form-control-sm border-dark text-center" style="width: 70px;" placeholder="P">
+                                        <span class="fw-bold">X</span>
+                                        <input type="number" id="input_l" class="form-control form-control-sm border-dark text-center" style="width: 70px;" placeholder="L">
+                                        <span class="fw-bold">=</span>
+                                        <input type="text" id="input_luas" class="form-control form-control-sm border-dark bg-light text-center" style="width: 90px;" readonly value="1">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <div class="flex-input-group">
+                                        <label class="fw-bold">Kode Bahan</label>
+                                        <input type="text" id="input_kode_bahan" class="form-control form-control-sm border-dark bg-light" readonly placeholder="-">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="flex-input-group">
+                                        <label class="fw-bold">Nama Bahan</label>
+                                        <input type="text" id="input_nama_bahan" class="form-control form-control-sm border-dark bg-light" readonly placeholder="-">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <div class="flex-input-group">
+                                        <label class="fw-bold">Harga Dasar</label>
+                                        <input type="text" id="input_harga_dasar" class="form-control form-control-sm border-dark bg-light" readonly value="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="flex-input-group">
+                                        <label class="fw-bold">Harga Jual</label>
+                                        <input type="number" id="input_harga_jual" class="form-control form-control-sm border-dark" value="0">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <div class="flex-input-group">
+                                        <label class="fw-bold">Jasa Desain</label>
+                                        <input type="number" id="input_jasa_desain" class="form-control form-control-sm border-dark" value="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="flex-input-group">
+                                        <label class="fw-bold">Biaya Lain</label>
+                                        <input type="number" id="input_biaya_lain" class="form-control form-control-sm border-dark" value="0">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <div class="flex-input-group">
+                                        <label class="fw-bold">Total Item Ini</label>
+                                        <input type="text" id="input_total_item" class="form-control form-control-sm border-dark bg-light fw-bold text-primary" readonly value="0">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="fw-bold" style="font-size: 13px;">Keterangan Item</label>
+                                <textarea id="input_keterangan_item" class="form-control border-dark" rows="1" style="font-size: 13px;" placeholder="Catatan khusus finishing mata ayam, lipat, dll..."></textarea>
+                            </div>
+
+                            <div class="d-flex justify-content-end gap-2">
+                                <button type="button" id="btn_tambah_item" class="btn text-white px-4 rounded-pill shadow-sm" style="background-color: #1A6B8D; font-weight: bold; font-size: 13px;">+ Tambah ke Tabel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-container-shadow mt-4">
+                        <table class="custom-table text-center" id="tabel_order_item">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Kode Item</th>
+                                    <th>Nama Item</th>
+                                    <th>Nama Pesanan</th>
+                                    <th>Qty</th>
+                                    <th>Ukuran (PxL)</th>
+                                    <th>Total</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-md-12 d-flex justify-content-end align-items-center gap-4">
+                            <div class="d-flex align-items-center gap-2">
+                                <label class="fw-bold mb-0">Total QTY</label>
+                                <input type="number" id="total_qty_all" class="form-control border-dark text-center fw-bold" style="width: 120px; border-radius: 8px;" readonly value="0">
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <label class="fw-bold mb-0">Total Harga</label>
+                                <input type="number" name="total_harga" id="total_harga_all" class="form-control border-dark text-center fw-bold text-success" style="width: 180px; border-radius: 8px;" readonly value="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <div class="flex-input-group">
+                                <label class="fw-bold">Sisa Pembayaran</label>
+                                <input type="number" name="sisa_bayar" id="sisa_pembayaran" class="form-control form-control-sm border-dark bg-light fw-bold text-danger" readonly value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="flex-input-group">
+                                <label class="fw-bold">Uang Muka (DP)</label>
+                                <input type="number" name="uang_muka" id="uang_muka" class="form-control form-control-sm border-dark" value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="flex-input-group">
+                                <label class="fw-bold">Bayar Lunas</label>
+                                <input type="checkbox" id="check_lunas" class="form-check-input border-dark ms-2"> Lunas?
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-center gap-2 mt-4">
+                        <button type="submit" class="btn-footer-order text-white border-0 py-2 px-4 rounded" style="background-color: #1A6B8D;">Simpan Order</button>
+                        <button type="reset" class="btn-footer-order text-white border-0 py-2 px-4 rounded" style="background-color: #8B0000;">Reset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .action-bar {
+        display: flex;
+        margin-bottom: 0px;
+    }
+    .controls-group {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin: 20px 0px;
+    }
+
+    .custom-input-date, .custom-select{
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        height: 38px;
+        padding: 0 10px;
+        font-size: 14px;
+        color: #666;
+        width: auto;
+    }
+
+    .table-container-shadow {
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
+        border: 1px solid #ddd;
+        width: 100%;
+        margin: 20px 0px;
+    }
+    .custom-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+    .custom-table thead {
+        background-color: #f0f2f8;
+        border-bottom: 2px solid #dee2e6;
+    }
+    .custom-table th {
+        padding: 12px 15px;
+        text-align: left;
+        font-weight: 600;
+        color: #333;
+    }
+    .custom-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #eee;
+        color: #555;
+    }
+    .custom-table tr:last-child td { 
+        border-bottom: none; 
+    }
+    .text-center { 
+        text-align: center !important; 
+    }
+
+    .text-center-custom {
+        text-align: center !important;
+    }
+
+    .badge-status {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        min-width: 80px;
+        text-align: center;
+    }
+
+    .badge-order { background-color: #FF7E7E; color: white; }
+    .badge-proses { background-color: #D4F000; color: #333; }
+    .badge-selesai { background-color: #00FF19; color: white; }
+
+    .btn-footer-order {
+        color: white;
+        border: none;
+        padding: 10px 25px;
+        border-radius: 8px;
+        font-weight: bold;
+        min-width: 120px;
+    }
+
+    .modal-body label {
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .modal-body .form-control, .modal-body .form-select {
+        font-size: 13px;
+        padding: 4px 8px;
+    }
+
+    .flex-input-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .flex-input-group label {
+        width: 130px; 
+        font-size: 13px;
+        margin-bottom: 0;
+    }
+
+    .flex-input-group .form-control, 
+    .flex-input-group .form-select {
+        flex: 1; 
+    }
+
+    .custom-modal-style {
+        position: relative;
+        border-radius: 15px; 
+        border: none;
+    }
+
+    .custom-close-btn {
+        position: absolute;
+        top: -15px;     
+        right: -15px;   
+        background: none;
+        border: none;
+        color: #ff0000; 
+        font-size: 32px;
+        z-index: 1060;  
+        padding: 0;
+        line-height: 1;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .custom-close-btn:hover {
+        transform: scale(1.1); 
+        color: #cc0000;
+    }
+
+    .bi-x-circle-fill::before {
+        background-color: white; 
+        border-radius: 50%;
+    }
+</style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+    // 1. Inisialisasi Tanggal Default
+    const tglInput = document.getElementById('tgl_order_input');
+    if (tglInput) tglInput.value = new Date().toISOString().split('T')[0];
+
+    // 2. Map & State Array untuk menampung baris pesanan
+    let orderItemsArray = [];
+    let customerDataMap = {};
+    let produkDataMap = {};
+
+    // DOM Elemen Customer
+    const inputCariCust = document.getElementById('cari_customer');
+    const listCust = document.getElementById('customer_list');
+    
+    // DOM Elemen Hitungan Item Sisi Kanan
+    const inputProduk = document.getElementById('input_produk');
+    const listProd = document.getElementById('produk_list');
+    const inputQty = document.getElementById('input_qty');
+    const inputP = document.getElementById('input_p');
+    const inputL = document.getElementById('input_l');
+    const inputLuas = document.getElementById('input_luas');
+    const inputHargaJual = document.getElementById('input_harga_jual');
+    const inputHargaDasar = document.getElementById('input_harga_dasar');
+    const inputKodeBahan = document.getElementById('input_kode_bahan');
+    const inputNamaBahan = document.getElementById('input_nama_bahan');
+    const inputJasaDesain = document.getElementById('input_jasa_desain');
+    const inputBiayaLain = document.getElementById('input_biaya_lain');
+    const inputTotalItem = document.getElementById('input_total_item');
+    const btnTambahItem = document.getElementById('btn_tambah_item');
+    const tbodyTabel = document.querySelector('#tabel_order_item tbody');
+
+    // DOM Elemen Final Pembayaran
+    const totalQtyAll = document.getElementById('total_qty_all');
+    const totalHargaAll = document.getElementById('total_harga_all');
+    const uangMuka = document.getElementById('uang_muka');
+    const sisaPembayaran = document.getElementById('sisa_pembayaran');
+    const checkLunas = document.getElementById('check_lunas');
+
+    // =========================================================================
+    // A. AUTOCOMPLETE CUSTOMER
+    // =========================================================================
+    inputCariCust.addEventListener('input', function () {
+        const val = this.value;
+        if (customerDataMap[val]) {
+            document.getElementById('id_customer_hidden').value = customerDataMap[val].id;
+            document.getElementById('kode_customer').value = customerDataMap[val].kode;
+            document.getElementById('alamat_customer').value = customerDataMap[val].alamat;
+            document.getElementById('telp_customer').value = customerDataMap[val].telepon;
+            return;
+        }
+        if (val.length < 1) return;
+
+        fetch(`/api/cari-customer/?q=${encodeURIComponent(val)}`)
+            .then(res => res.json())
+            .then(data => {
+                listCust.innerHTML = "";
+                data.results.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.nama;
+                    listCust.appendChild(opt);
+                    customerDataMap[item.nama] = item;
+                });
+            });
+    });
+
+    // =========================================================================
+    // B. AUTOCOMPLETE PRODUK (Mengambil dari database HargaJual hasil migrasi)
+    // =========================================================================
+    // Catatan: Pastikan Anda membuat view api_cari_produk di Django Anda nantinya
+    inputProduk.addEventListener('input', function () {
+        const val = this.value;
+        if (produkDataMap[val]) {
+            inputHargaJual.value = produkDataMap[val].harga_jual;
+            inputHargaDasar.value = produkDataMap[val].harga_dasar || 0;
+            inputKodeBahan.value = produkDataMap[val].kode || "PRD";
+            inputNamaBahan.value = produkDataMap[val].nama;
+            hitungItemIni();
+            return;
+        }
+        if (val.length < 1) return;
+
+        // AJAX memanggil daftar barang migrasi
+        fetch(`/api/cari-produk/?q=${encodeURIComponent(val)}`)
+            .then(res => res.json())
+            .then(data => {
+                listProd.innerHTML = "";
+                data.results.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.nama_produk;
+                    listProd.appendChild(opt);
+                    produkDataMap[item.nama_produk] = {
+                        nama: item.nama_produk,
+                        harga_jual: item.harga_jual_akhir,
+                        kode: item.kode_barang
+                    };
+                });
+            });
+    });
+
+    // =========================================================================
+    // C. KALKULATOR UTAMA PER ITEM CETAKAN
+    // =========================================================================
+    function hitungItemIni() {
+        const qty = parseInt(inputQty.value) || 0;
+        let p = parseFloat(inputP.value) || 1;
+        let l = parseFloat(inputL.value) || 1;
+        
+        // Antisipasi produk satuan (jika diisi 0, buat jadi 1 agar perkalian aman)
+        if (p <= 0) p = 1;
+        if (l <= 0) l = 1;
+
+        const luas = p * l;
+        inputLuas.value = luas.toFixed(2);
+
+        const hargaJual = parseFloat(inputHargaJual.value) || 0;
+        const jasaDesain = parseFloat(inputJasaDesain.value) || 0;
+        const biayaLain = parseFloat(inputBiayaLain.value) || 0;
+
+        // Rumus Percetakan Banner/Stiker: (Luas * HargaJual * Qty) + Jasa Desain + Biaya Lain
+        const total = (luas * hargaJual * qty) + jasaDesain + biayaLain;
+        inputTotalItem.value = Math.round(total);
+    }
+
+    [inputQty, inputP, inputL, inputHargaJual, inputJasaDesain, inputBiayaLain].forEach(el => {
+        el.addEventListener('input', hitungItemIni);
+    });
+
+    // =========================================================================
+    // D. TOMBOL + TAMBAH KE TABEL SEMENTARA
+    // =========================================================================
+    btnTambahItem.addEventListener('click', function () {
+        const namaItem = document.getElementById('input_nama_item').value.trim();        const produk = inputProduk.value;
+        
+        if (!namaItem || !produk) {
+            alert("Nama Item dan Produk wajib diisi!");
+            return;
+        }
+
+        const itemObj = {
+            kode_item: inputKodeBahan.value,
+            nama_item: produk,
+            nama_pesanan: namaItem,
+            qty: parseInt(inputQty.value) || 1,
+            panjang: parseFloat(inputP.value) || 1,
+            lebar: parseFloat(inputL.value) || 1,
+            harga_dasar: parseFloat(inputHargaDasar.value) || 0,
+            harga_jual: parseFloat(inputHargaJual.value) || 0,
+            jasa_desain: parseFloat(inputJasaDesain.value) || 0,
+            biaya_lain: parseFloat(inputBiayaLain.value) || 0,
+            total: parseFloat(inputTotalItem.value) || 0,
+            keterangan: document.getElementById('input_keterangan_item').value
+        };
+
+        orderItemsArray.push(itemObj);
+        renderTabelItem();
+        resetInputItemSisiKanan();
+    });
+
+    function renderTabelItem() {
+        tbodyTabel.innerHTML = "";
+        let grandTotalHarga = 0;
+        let grandTotalQty = 0;
+
+        orderItemsArray.forEach((item, index) => {
+            grandTotalHarga += item.total;
+            grandTotalQty += item.qty;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${item.kode_item}</td>
+                <td>${item.nama_item}</td>
+                <td>${item.nama_pesanan}</td>
+                <td>${item.qty}</td>
+                <td>${item.panjang} x ${item.lebar}</td>
+                <td>Rp ${item.total.toLocaleString('id-ID')}</td>
+                <td><button type="button" class="btn btn-sm btn-danger py-0 px-2 btn-hapus" data-index="${index}">X</button></td>
+            `;
+            tbodyTabel.appendChild(tr);
+        });
+
+        totalQtyAll.value = grandTotalQty;
+        totalHargaAll.value = grandTotalHarga;
+        
+        hitungSisaPembayaran();
+
+        // Masukkan data array ke input hidden JSON agar dibaca Django saat disubmit
+        document.getElementById('items_json').value = JSON.stringify(orderItemsArray);
+    }
+
+    function resetInputItemSisiKanan() {
+        document.getElementById('input_nama_item').value = "";
+        inputProduk.value = "";
+        inputQty.value = "1";
+        inputP.value = "1";
+        inputL.value = "1";
+        inputLuas.value = "1";
+        inputHargaJual.value = "0";
+        inputHargaDasar.value = "0";
+        inputKodeBahan.value = "-";
+        inputNamaBahan.value = "-";
+        inputJasaDesain.value = "0";
+        inputBiayaLain.value = "0";
+        inputTotalItem.value = "0";
+        document.getElementById('input_keterangan_item').value = "";
+    }
+
+    // Event Hapus Baris Tabel
+    tbodyTabel.addEventListener('click', function (e) {
+        if (e.target.classList.contains('btn-hapus')) {
+            const index = e.target.getAttribute('data-index');
+            orderItemsArray.splice(index, 1);
+            renderTabelItem();
+        }
+    });
+
+    // =========================================================================
+    // E. SISA PEMBAYARAN DAN FINANSIAL
+    // =========================================================================
+    function hitungSisaPembayaran() {
+        const totalHarga = parseFloat(totalHargaAll.value) || 0;
+        const dp = parseFloat(uangMuka.value) || 0;
+        const sisa = totalHarga - dp;
+        sisaPembayaran.value = sisa >= 0 ? sisa : 0;
+    }
+
+    uangMuka.addEventListener('input', hitungSisaPembayaran);
+
+    checkLunas.addEventListener('change', function () {
+        if (this.checked) {
+            uangMuka.value = totalHargaAll.value;
+            uangMuka.setAttribute('readonly', true);
+        } else {
+            uangMuka.removeAttribute('readonly');
+            uangMuka.value = 0;
+        }
+        hitungSisaPembayaran();
+    });
+});
+
+const myModalEl = document.getElementById('tambahOrderModal'); 
+
+if (myModalEl) {
+    myModalEl.addEventListener('show.bs.modal', function (event) {
+        const inputNoOrder = document.getElementById('modal_no_order');
+        if (inputNoOrder) {
+            inputNoOrder.value = "Memuat..."; // Efek loading sebentar
+            
+            // Panggil API untuk mengambil nomor urut otomatis terbaru
+            fetch('/api/get-next-order-number/')
+                .then(response => response.json())
+                .then(data => {
+                    inputNoOrder.value = data.next_no_order;
+                })
+                .catch(error => {
+                    console.error('Error fetching order number:', error);
+                    inputNoOrder.value = "Gagal memuat";
+                });
+        }
+    });
+}
+</script>
+{% endblock %}
