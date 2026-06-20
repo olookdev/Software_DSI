@@ -65,7 +65,6 @@ class HargaJual(models.Model):
     bahan_baku = models.ManyToManyField('List_Stok', through='HargaJualBahan', related_name='produk_jual')
 
     def save(self, *args, **kwargs):
-        """Fungsi override save untuk membuat Kode Produk Otomatis berdasarkan TahunBulan dan Urutan"""
         if not self.kode_produk:
             sekarang = timezone.now()
             tahun_bulan = sekarang.strftime('%y%m')
@@ -80,18 +79,15 @@ class HargaJual(models.Model):
 
     @property
     def total_modal(self):
-        """Menghitung Total HPP: (Semua Harga Stok Bahan Baku) + Tenaga Kerja + Listrik"""
         total_bahan = sum(item.harga_stok_terpilih.harga_satuan for item in self.list_bahan.all())
         return total_bahan + self.biaya_tenaga_kerja + self.biaya_listrik
 
     @property
     def laba(self):
-        """Menghitung Laba Nominal: Harga Jual - Total HPP"""
         return self.harga_jual_akhir - self.total_modal
 
     @property
     def laba_persen(self):
-        """Menghitung Persentase Keuntungan murni terhadap Harga Jual"""
         if self.harga_jual_akhir > 0:
             return (self.laba / self.harga_jual_akhir) * 100
         return 0
@@ -101,7 +97,6 @@ class HargaJual(models.Model):
 
 
 class HargaJualBahan(models.Model):
-    """Tabel jembatan (pivot table) untuk menampung banyak komponen bahan baku di dalam satu produk"""
     harga_jual = models.ForeignKey(HargaJual, on_delete=models.CASCADE, related_name='list_bahan')
     barang = models.ForeignKey('List_Stok', on_delete=models.CASCADE)
     
@@ -139,6 +134,8 @@ class OrderUtama(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT, verbose_name="Customer")
     nama_order = models.CharField(max_length=255, verbose_name="Nama Order / Judul Project")
     total_harga = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="Total Harga")
+    uang_muka = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="Uang Muka (DP)")
+    sisa_bayar = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="Sisa Pembayaran")
     keterangan = models.TextField(blank=True, null=True, verbose_name="Keterangan")
 
     def save(self, *args, **kwargs):

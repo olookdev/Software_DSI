@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from .models import Suplier, Customer,List_Stok,JenisBarang, HargaStok, HargaJual, HargaJualBahan, ArusStok, OrderUtama, OrderDetail
 from django.db import transaction
 from django.http import HttpResponse
-from datetime import datetime
+from django.utils import timezone
 import json
 
 def login_view(request):
@@ -322,7 +322,6 @@ def hapus_suplier(request, pk):
 
 # ========================HargaStok==========================
 def daftar_harga(request):
-    """1. MENAMPILKAN HALAMAN UTAMA (GET) & SIMPAN HARGA STOK (POST)"""
     if request.method == "POST":
         barang_id = request.POST.get('barang')
         suplier_id = request.POST.get('suplier') 
@@ -389,7 +388,6 @@ def hapus_harga(request, id):
 
 # =====================harga jual=====================
 def daftar_harga_jual(request):
-    """2. MENERIMA SIMPAN DATA TAMBAH BARU (POST MULTI-BAHAN)"""
     if request.method == "POST":
         v_nama_produk = request.POST.get('nama_produk')
         v_tenaga = float(request.POST.get('biaya_tenaga') or 0)
@@ -422,7 +420,6 @@ def daftar_harga_jual(request):
     return redirect('/daftar_harga/#harga-jual')
 
 def edit_harga_jual(request):
-    """3. MENERIMA SIMPAN DATA PERUBAHAN / EDIT (POST MULTI-BAHAN)"""
     if request.method == "POST":
         id_jual = request.POST.get('id_harga_jual')
         v_nama_produk = request.POST.get('nama_produk')
@@ -584,7 +581,16 @@ def hapus_arus_stok(request, pk):
 
     return redirect('log_arus_stok')
 
-# ===============================order==========================================
+#================================================Order================================================
+def titik_uang(nilai_string):
+    if not nilai_string or nilai_string == '':
+        return 0.0
+    clean_string = str(nilai_string).replace('.', '').replace(',', '.')
+    try:
+        return float(clean_string)
+    except ValueError:
+        return 0.0
+
 def list_order(request):
     query = request.GET.get('search')
     
@@ -593,9 +599,9 @@ def list_order(request):
             Q(no_order__icontains=query) | 
             Q(nama_order__icontains=query) |
             Q(customer__nama_customer__icontains=query)
-        ).order_by('-tgl_order') 
+        ).order_by('-id')
     else:
-        semua_order = OrderUtama.objects.all().order_by('-tgl_order')
+        semua_order = OrderUtama.objects.all().order_by('-id')
 
     return render(request, 'inventory/list_order.html', {
         'orders': semua_order,
@@ -607,12 +613,18 @@ def tambah_order(request):
     if request.method == "POST":
         customer_id = request.POST.get('customer_id')
         v_nama_order = request.POST.get('nama_order')
-        v_keterangan = request.POST.get('keterangan')
+        v_keterangan = request.POST.get('keterangan', '')
         v_no_order = request.POST.get('no_order')
         v_status = request.POST.get('status', 'order')
-        v_total_harga = request.POST.get('total_harga', 0)
-        v_uang_muka = request.POST.get('uang_muka', 0)
-        v_sisa_bayar = request.POST.get('sisa_bayar', 0)
+        
+        v_tgl_order = request.POST.get('tgl_order')
+        if not v_tgl_order:
+            v_tgl_order = timezone.now().date()
+
+        v_total_harga = titik_uang(request.POST.get('total_harga', 0))
+        v_uang_muka = titik_uang(request.POST.get('uang_muka', 0))
+        v_sisa_bayar = titik_uang(request.POST.get('sisa_bayar', 0))
+        
         items_json = request.POST.get('items_json')
 
         if not customer_id:
@@ -630,7 +642,8 @@ def tambah_order(request):
                 keterangan=v_keterangan,
                 total_harga=v_total_harga,
                 uang_muka=v_uang_muka,   
-                sisa_bayar=v_sisa_bayar   
+                sisa_bayar=v_sisa_bayar,
+                tgl_order=v_tgl_order 
             )
             
             if items_json:
@@ -656,16 +669,17 @@ def tambah_order(request):
                 messages.warning(request, f"Order {v_no_order} disimpan tanpa ada item pesanan.")
                 
         except Exception as e:
+            import traceback
+            traceback.print_exc() 
+            
             messages.error(request, f"Terjadi kesalahan saat menyimpan data: {str(e)}")
         
         return redirect('list_order')
     return redirect('list_order')
 
-
 def cari_customer(request):
     term = request.GET.get('q', '') 
     customers = Customer.objects.filter(nama_customer__icontains=term)[:10]
-    
     results = []
     for c in customers:
         results.append({
@@ -675,46 +689,113 @@ def cari_customer(request):
             'alamat': c.alamat if c.alamat else '-',
             'telepon': c.telepon if c.telepon else '-'
         })
-        
     return JsonResponse({'results': results}, safe=False)
 
 def kode_order(request):
-    sekarang = datetime.now()
-    tahun_bulan = sekarang.strftime('%Y%m') 
-
-    order_terakhir = OrderUtama.objects.filter(
-        no_order__contains=f"ORD-{tahun_bulan}-"
-    ).order_by('-no_order').first()
-
+    sekarang = timezone.now()
+    tahun_bulan = sekarang.strftime('%Y%m')
+    prefix = f"ORD-{tahun_bulan}-"
+    order_terakhir = OrderUtama.objects.filter(no_order__startswith=prefix).order_by('-no_order').first()
     if order_terakhir:
         nomor_terakhir_str = order_terakhir.no_order.split('-')[-1]
         nomor_baru = int(nomor_terakhir_str) + 1
     else:
         nomor_baru = 1
-
-    next_no_order = f"{tahun_bulan}{str(nomor_baru).zfill(3)}"
-    
+    next_no_order = f"{prefix}{str(nomor_baru).zfill(3)}"
     return JsonResponse({'next_no_order': next_no_order})
 
 def cari_produk(request):
-    query = request.GET.get('q', '')
+    query = request.GET.get('q', '').strip()
     results = []
-    
     if query:
-        if "sticker" in query.lower() or "stc" in query.lower():
+        produk_queryset = HargaJual.objects.filter(nama_produk__icontains=query)[:10]
+        for produk in produk_queryset:
             results.append({
-                'nama_produk': 'STICKER VINYIL CHINA DURATAC (OUT)',
-                'harga_jual_akhir': 37000.0,
-                'kode_barang': '0500900001'
+                'id': produk.id,
+                'nama_produk': produk.nama_produk,
+                'harga_jual': int(produk.harga_jual_akhir) if produk.harga_jual_akhir else 0,  
+                'kode_barang': produk.kode_produk if produk.kode_produk else "PRD"
             })
-        elif "banner" in query.lower():
-            results.append({
-                'nama_produk': 'BANNER OUTDOOR KOREA 440gr',
-                'harga_jual_akhir': 65000.0,
-                'kode_barang': '0500900002'
-            })
-            
     return JsonResponse({'results': results})
+
+def get_order_items(request, order_id):
+    order_utama = get_object_or_404(OrderUtama, id=order_id)
+    items_queryset = OrderDetail.objects.filter(order_utama=order_utama)
+    
+    daftar_item = []
+    for item in items_queryset:
+        daftar_item.append({
+            'kode_item': item.kode_item if item.kode_item else '-',
+            'nama_item': item.nama_item,
+            'nama_pesanan': item.nama_pesanan,
+            'qty': item.qty,
+            'panjang': float(item.panjang),
+            'lebar': float(item.lebar),
+            'harga_dasar': float(item.harga_dasar),
+            'harga_jual': float(item.harga_jual),
+            'jasa_desain': float(item.jasa_desain),
+            'biaya_lain': float(item.biaya_lain),
+            'total': float(item.total),
+            'keterangan': item.keterangan if item.keterangan else ''
+        })
+        
+    return JsonResponse({'items': daftar_item})
+
+def edit_order(request, order_id):
+    if request.method == "POST":
+        order_utama = get_object_or_404(OrderUtama, id=order_id)
+        
+        try:
+            customer_id = request.POST.get('id_customer_hidden')
+            nama_order = request.POST.get('nama_order_utama') 
+            status = request.POST.get('status')
+            keterangan = request.POST.get('keterangan_utama') 
+            total_harga = float(request.POST.get('total_harga_all', '0').replace('.', '').replace(',', '.'))
+            uang_muka = float(request.POST.get('uang_muka', '0').replace('.', '').replace(',', '.'))
+            sisa_bayar = total_harga - uang_muka
+            
+            if customer_id:
+                order_utama.customer = get_object_or_404(Customer, id=customer_id)
+            
+            order_utama.status = status
+            order_utama.total_harga = total_harga
+            order_utama.uang_muka = uang_muka
+            order_utama.sisa_bayar = sisa_bayar
+            if keterangan:
+                order_utama.keterangan = keterangan
+                
+            order_utama.save() 
+            
+            items_json_data = request.POST.get('items_json')
+            if items_json_data:
+                items_list = json.loads(items_json_data)
+                OrderDetail.objects.filter(order_utama=order_utama).delete()
+                
+                for item in items_list:
+                    OrderDetail.objects.create(
+                        order_utama=order_utama,
+                        kode_item=item.get('kode_item', '-'),
+                        nama_item=item.get('nama_item'),
+                        nama_pesanan=item.get('nama_pesanan'),
+                        qty=int(item.get('qty', 1)),
+                        panjang=float(item.get('panjang', 1)),
+                        lebar=float(item.get('lebar', 1)),
+                        harga_dasar=float(item.get('harga_dasar', 0)),
+                        harga_jual=float(item.get('harga_jual', 0)),
+                        jasa_desain=float(item.get('jasa_desain', 0)),
+                        biaya_lain=float(item.get('biaya_lain', 0)),
+                        total=float(item.get('total', 0)),
+                        keterangan=item.get('keterangan', '')
+                    )
+            
+            messages.success(request, f"Order {order_utama.no_order} berhasil diperbarui!")
+            return redirect('/order/') 
+            
+        except Exception as e:
+            messages.error(request, f"Gagal memperbarui order: {str(e)}")
+            return redirect('/order/')
+            
+    return redirect('/order/')
 
 @login_required(login_url='login')
 def hutang(request):

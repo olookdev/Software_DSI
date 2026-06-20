@@ -6,7 +6,7 @@ from inventory.views import (
     hapus_harga, hapus_harga_jual, edit_harga_jual, daftar_harga_jual, 
     tambah_jenis, hapus_stok, edit_harga_stok, tambah_arus_stok, log_arus_stok,
     edit_arus_stok, hapus_arus_stok, hapus_customer, hapus_suplier,  list_order, cari_customer, tambah_order,
-    kode_order, cari_produk
+    kode_order, cari_produk, get_order_items, edit_order
 )
 
 urlpatterns = [
@@ -60,5 +60,7 @@ urlpatterns = [
     path('order/tambah/', tambah_order, name='tambah_order'),
     path('api/cari-customer/', cari_customer, name='cari_customer'),
     path('api/get-next-order-number/', kode_order, name='api_get_next_order_number'),
-    path('api/cari-produk/', cari_produk, name='cari_produk'),
+    path('api/cari-produk/', cari_produk, name='api_cari_produk'),
+    path('api/get-order-items/<int:order_id>/', get_order_items, name='get_order_items'),
+    path('order/edit/<int:order_id>/', edit_order, name='edit_order_utama'),
 ]
