@@ -6,7 +6,7 @@ from inventory.views import (
     hapus_harga, hapus_harga_jual, edit_harga_jual, daftar_harga_jual, 
     tambah_jenis, hapus_stok, edit_harga_stok, tambah_arus_stok, log_arus_stok,
     edit_arus_stok, hapus_arus_stok, hapus_customer, hapus_suplier,  list_order, cari_customer, tambah_order,
-    kode_order, cari_produk, get_order_items, edit_order
+    kode_order, cari_produk, get_order_items, edit_order, bayar_cicilan
 )
 
 urlpatterns = [
@@ -53,7 +53,6 @@ urlpatterns = [
     
     # Keuangan
     path('hutang/', hutang, name='hutang'),
-    path('piutang/', piutang, name='piutang'),
 
     #order
     path('order/', list_order, name='list_order'),
@@ -63,4 +62,8 @@ urlpatterns = [
     path('api/cari-produk/', cari_produk, name='api_cari_produk'),
     path('api/get-order-items/<int:order_id>/', get_order_items, name='get_order_items'),
     path('order/edit/<int:order_id>/', edit_order, name='edit_order_utama'),
+
+    #piutang
+    path('piutang/', piutang, name='piutang'),
+    path('piutang/bayar/<int:piutang_id>/', bayar_cicilan, name='bayar_cicilan'),
 ]

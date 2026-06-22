@@ -1,6 +1,8 @@
 from django.db import models
 from django.utils import timezone
 from datetime import datetime
+from django.dispatch import receiver
+from django.db.models.signals import post_save
 
 class Suplier(models.Model):
     kode_suplier = models.CharField(max_length=20, unique=True)
@@ -183,3 +185,43 @@ class OrderDetail(models.Model):
     class Meta:
         verbose_name = "Order Detail"
         verbose_name_plural = "Order Detail"
+
+class PiutangPelanggan(models.Model):
+    order = models.OneToOneField('OrderUtama', on_delete=models.CASCADE, related_name='piutang')
+    sisa_piutang = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    STATUS_CHOICES = [
+        ('Belum Lunas', 'Belum Lunas'),
+        ('Lunas', 'Lunas'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Belum Lunas')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Piutang {self.order.no_order} - {self.order.customer.nama_customer}"
+
+class CicilanPiutang(models.Model):
+    piutang = models.ForeignKey(PiutangPelanggan, on_delete=models.CASCADE, related_name='list_cicilan')
+    tgl_pembayaran = models.DateField(default=timezone.now)
+    nominal_dicicil = models.DecimalField(max_digits=12, decimal_places=2)
+    keterangan = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Cicilan {self.piutang.order.no_order} - Rp {self.nominal_dicicil}"
+    
+@receiver(post_save, sender=OrderUtama)
+def otomatis_buat_piutang(sender, instance, created, **kwargs):
+    if instance.sisa_bayar and float(instance.sisa_bayar) > 0:
+        PiutangPelanggan.objects.update_or_create(
+            order=instance,
+            defaults={
+                'sisa_piutang': instance.sisa_bayar,
+                'status': 'Belum Lunas'
+            }
+        )
+    else:
+        piutang_exist = PiutangPelanggan.objects.filter(order=instance).first()
+        if piutang_exist:
+            piutang_exist.sisa_piutang = 0
+            piutang_exist.status = 'Lunas'
+            piutang_exist.save()

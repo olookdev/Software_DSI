@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q, Max, Sum
 from django.http import JsonResponse
-from .models import Suplier, Customer,List_Stok,JenisBarang, HargaStok, HargaJual, HargaJualBahan, ArusStok, OrderUtama, OrderDetail
+from .models import Suplier, Customer,List_Stok,JenisBarang, HargaStok, HargaJual, HargaJualBahan, ArusStok, OrderUtama, OrderDetail, PiutangPelanggan, CicilanPiutang
 from django.db import transaction
 from django.http import HttpResponse
 from django.utils import timezone
@@ -619,7 +619,7 @@ def tambah_order(request):
         
         v_tgl_order = request.POST.get('tgl_order')
         if not v_tgl_order:
-            v_tgl_order = timezone.now().date()
+            v_tgl_order = timezone.now()
 
         v_total_harga = titik_uang(request.POST.get('total_harga', 0))
         v_uang_muka = titik_uang(request.POST.get('uang_muka', 0))
@@ -797,10 +797,61 @@ def edit_order(request, order_id):
             
     return redirect('/order/')
 
+
+
+#=====================================piutang=====================================
+@login_required(login_url='login')
+def piutang(request):
+    daftar_piutang = PiutangPelanggan.objects.filter(status='Belum Lunas').select_related('order', 'order__customer').order_by('-updated_at')
+    
+    context = {
+        'daftar_piutang': daftar_piutang,
+    }
+    return render(request, 'inventory/piutang.html', context)
+
+
+@login_required(login_url='login')
+def bayar_cicilan(request, piutang_id):
+    if request.method == 'POST':
+        piutang_obj = get_object_or_404(PiutangPelanggan, id=piutang_id)
+        nominal_input = request.POST.get('nominal_pembayaran')
+        keterangan_input = request.POST.get('keterangan', '')
+
+        try:
+            nominal_pembayaran = float(nominal_input)
+        except (ValueError, TypeError):
+            messages.error(request, "Nominal pembayaran harus berupa angka valid!")
+            return redirect('piutang')
+
+        if nominal_pembayaran <= 0:
+            messages.error(request, "Nominal pembayaran harus lebih besar dari Rp 0!")
+            return redirect('piutang')
+
+        if nominal_pembayaran > float(piutang_obj.sisa_piutang):
+            messages.error(request, f"Nominal kelebihan! Sisa piutang saat ini adalah Rp {piutang_obj.sisa_piutang:,.0f}")
+            return redirect('piutang')
+
+        with transaction.atomic():
+            CicilanPiutang.objects.create(
+                piutang=piutang_obj,
+                nominal_dicicil=nominal_pembayaran,
+                keterangan=keterangan_input
+            )
+
+            piutang_obj.sisa_piutang = float(piutang_obj.sisa_piutang) - nominal_pembayaran
+            
+            if piutang_obj.sisa_piutang == 0:
+                piutang_obj.status = 'Lunas'
+            piutang_obj.save()
+
+            order_obj = piutang_obj.order
+            order_obj.sisa_bayar = float(order_obj.sisa_bayar) - nominal_pembayaran
+            order_obj.save()
+
+            messages.success(request, f"Berhasil mencatat cicilan sebesar Rp {nominal_pembayaran:,.0f} untuk {piutang_obj.order.customer.nama_customer}")
+
+    return redirect('piutang')
+
 @login_required(login_url='login')
 def hutang(request):
     return HttpResponse("<h3>Halaman Data Hutang (Sedang dalam Perbaikan)</h3><a href='/order/'>Kembali ke Order</a>")
-
-@login_required(login_url='login')
-def piutang(request):
-    return HttpResponse("<h3>Halaman Data Piutang (Sedang dalam Perbaikan)</h3><a href='/order/'>Kembali ke Order</a>")

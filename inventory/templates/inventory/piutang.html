@@ -1,292 +1,121 @@
 {% extends 'inventory/base.html' %}
-
+{% load humanize %} ```
 {% block page_title %}Piutang{% endblock %}
 
 {% block content %}
 
 <div class="action-bar">
     <div class="controls-group">
-        {% include 'components/search_bar.html' with placeholder_text="Cari Nama atau Kode Customer........." %}
+        {% include 'components/search_bar.html' with placeholder_text="Cari customer atau order........." %}
     </div>
     <div class="table-container-shadow">
-        <table class="custom-table">
+        <table class="custom-table table align-middle">
             <thead>
                 <tr>
                     <th style="width: 50px;">No</th>
-                    <th>Kode Customer</th>
                     <th>Nama Customer</th>
                     <th>Kode Order</th>
+                    <th>Nama Order</th>
                     <th>Tanggal Order</th>
                     <th>Sisa Piutang</th>
-                    <th>Aksi</th> 
+                    <th>Status</th>
+                    <th style="width: 80px;">Aksi</th> 
                 </tr>
             </thead>
             <tbody>
+                {% for item in daftar_piutang %}
                 <tr>
-                    <td>1</td>
-                    <td>S001</td>
-                    <td>mas yog</td>
-                    <td>0001</td>
-                    <td>23-04-2026</td>
-                    <td>100.00</td>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ item.order.customer.nama_customer }}</td>
+                    <td>{{ item.order.no_order }}</td>
+                    <td>{{ item.order.nama_order|default:"-" }}</td>
+                    <td>{{ item.order.tgl_order|date:"d-m-Y" }}</td>
+                    <td>Rp {{ item.sisa_piutang|floatformat:0|intcomma }}</td>
+                    <td>{{ item.status }}</td>
                     <td class="text-center">
-                        <div class="d-flex gap-2 justify-content-center align-items-center " style="margin-left: -90px;">
-                            <button class="btn-action-outline" data-bs-toggle="modal" data-bs-target="#modalDetailPiutang">
+                        <div class="d-flex gap-2 justify-content-center align-items-center">
+                            <button class="btn btn-sm btn-outline-primary btn-detail-piutang" 
+                                    data-id="{{ item.id }}"
+                                    data-nama="{{ item.order.customer.nama_customer }}"
+                                    data-noorder="{{ item.order.no_order }}"
+                                    data-namaorder="{{ item.order.nama_order|default:'-' }}"
+                                    data-sisa="{{ item.sisa_piutang|floatformat:0 }}"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#modalDetailPiutang">
                                 <i class="bi bi-eye"></i>
                             </button>
                         </div>
                     </td>
                 </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        Tidak ada data piutang pelanggan aktif.
+                    </td>
+                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
 
 <div class="modal fade" id="modalDetailPiutang" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content custom-modal-style">
-            <button type="button" class="custom-close-btn" data-bs-dismiss="modal" aria-label="Close">
-                <i class="bi bi-x-circle-fill"></i>
-            </button>
-
-            <div class="modal-body p-4">
-                <h2 class="text-center fw-bold mb-4">Tambah Order</h2>
-                
-                <form action="" method="POST">
-                    {% csrf_token %}
-                    <div class="row">
-                        <div class="col-md-4 border-end">
-                            <div class="status-container p-2 mb-3 rounded shadow-sm" style="background-color: #A3FFAC;">
-                                <div class="row align-items-center">
-                                    <label class="col-sm-4 fw-bold">Status</label>
-                                    <div class="col-sm-8">
-                                        <select class="form-select form-select-sm border-dark" readonly>
-                                            <option>Order</option>
-                                            <option>Proses</option>
-                                            <option>Selesai</option>
-                                        </select>
-                                    </div>
-                                </div>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalDetailPiutangLabel">Detail & Pembayaran Piutang</h5>
+                <button type="button" class="btn-close" data-bs-shadow="none" data-bs-content="none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <form id="formBayarCicilan" method="POST" action="">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="card bg-light border-0 mb-3">
+                        <div class="card-body p-3 fs-14">
+                            <div class="row mb-1">
+                                <div class="col-5 text-muted">Customer:</div>
+                                <div class="col-7 fw-bold" id="modalNamaCustomer">-</div>
                             </div>
-                            <div class="flex-input-group mb-2">
-                                <label class="fw-bold">No Order</label>
-                                <input type="text" class="form-control form-control-sm border-dark"readonly>
+                            <div class="row mb-1">
+                                <div class="col-5 text-muted">Kode Order:</div>
+                                <div class="col-7 font-monospace" id="modalNoOrder">-</div>
                             </div>
-
-                            <div class="flex-input-group mb-2">
-                                <label class="fw-bold">Tgl Order</label>
-                                <input type="date" class="form-control form-control-sm border-dark"readonly>
+                            <div class="row mb-1">
+                                <div class="col-5 text-muted">Nama Order:</div>
+                                <div class="col-7" id="modalNamaOrder">-</div>
                             </div>
-
-                            <div class="flex-input-group mb-2">
-                                <label class="fw-bold">Kode Customer</label>
-                                <input type="text" class="form-control form-control-sm border-dark"readonly>
-                            </div>
-
-                            <div class="flex-input-group mb-2">
-                                <label class="fw-bold">Nama Customer</label>
-                                <input type="text" class="form-control form-control-sm border-dark"readonly>
-                            </div>
-
-                            <div class="flex-input-group mb-2">
-                                <label class="fw-bold">Alamat</label>
-                                <input type="text" class="form-control form-control-sm border-dark"readonly>
-                            </div>
-
-                            <div class="flex-input-group mb-2">
-                                <label class="fw-bold">No Telp</label>
-                                <input type="number" class="form-control form-control-sm border-dark"readonly>
-                            </div>
-                        </div>
-
-                        <div class="col-md-8">
-                            <div class="row mb-2">
-                                <div class="col-md-6">
-                                    <div class="flex-input-group">
-                                        <label class="fw-bold">Kode Item</label>
-                                        <input type="text" class="form-control form-control-sm border-dark"readonly>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="flex-input-group">
-                                        <label class="fw-bold">Nama Item</label>
-                                        <input type="text" class="form-control form-control-sm border-dark"readonly>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="flex-input-group mb-2">
-                                <label class="fw-bold" style="width: 130px;">Nama Pesanan</label>
-                                <input type="text" class="form-control form-control-sm border-dark"readonly>
-                            </div>
-
-                            <div class="row mb-2">
-                                <div class="col-md-4">
-                                    <div class="flex-input-group">
-                                        <label class="fw-bold">Qty Pesanan</label>
-                                        <input type="number" class="form-control form-control-sm border-dark"readonly>
-                                    </div>
-                                </div>
-                                <div class="col-md-8">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <input type="number" class="form-control form-control-sm border-dark text-center" style="width: 60px;" placeholder="P" readonly>
-                                        <span class="fw-bold">X</span>
-                                        <input type="number" class="form-control form-control-sm border-dark text-center" style="width: 60px;" placeholder="L" readonly>
-                                        <span class="fw-bold">=</span>
-                                        <input type="number" class="form-control form-control-sm border-dark" readonly>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row mb-2">
-                                <div class="col-md-6">
-                                    <div class="flex-input-group">
-                                        <label class="fw-bold">Kode Bahan</label>
-                                        <input type="text" class="form-control form-control-sm border-dark" readonly>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="flex-input-group">
-                                        <label class="fw-bold">Nama Bahan</label>
-                                        <input type="text" class="form-control form-control-sm border-dark" readonly>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row mb-2">
-                                <div class="col-md-6 d-flex align-items-center gap-3">
-                                    <label class="fw-bold" style="width: 100px; font-size: 13px;">Bahan Baru</label>
-                                    <div class="form-check" style="margin-left: 25px;">
-                                        <input type="radio" name="bb" class="form-check-input border-dark" readonly>
-                                        <label class="form-check-label" style="width: auto;">Iya</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input type="radio" name="bb" class="form-check-input border-dark" readonly>
-                                        <label class="form-check-label" style="width: auto;">Tidak</label>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="flex-input-group">
-                                        <label class="fw-bold">Harga Dasar</label>
-                                        <input type="text" class="form-control form-control-sm border-dark" readonly>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row mb-2">
-                                <div class="col-md-6">
-                                    <div class="flex-input-group">
-                                        <label class="fw-bold">Harga Jual</label>
-                                        <input type="number" class="form-control form-control-sm border-dark"readonly>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="flex-input-group">
-                                        <label class="fw-bold">Jasa Desain</label>
-                                        <input type="number" class="form-control form-control-sm border-dark"readonly>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row mb-2">
-                                <div class="col-md-6">
-                                    <div class="flex-input-group">
-                                        <label class="fw-bold">Biaya Lain</label>
-                                        <input type="number" class="form-control form-control-sm border-dark"readonly>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="flex-input-group">
-                                        <label class="fw-bold">Total</label>
-                                        <input type="text" class="form-control form-control-sm border-dark" readonly>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="fw-bold" style="font-size: 13px;">Keterangan</label>
-                                <textarea class="form-control border-dark" rows="2" style="font-size: 13px;"readonly></textarea>
+                            <hr class="my-2">
+                            <div class="row">
+                                <div class="col-5 text-muted fw-bold text-danger">Sisa Piutang:</div>
+                                <div class="col-7 fw-bold text-danger" id="modalSisaPiutang">Rp 0</div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="table-container-shadow mt-4">
-                        <table class="custom-table text-center">
-                            <thead>
-                                <tr>
-                                    <th>No</th>
-                                    <th>Kode Item</th>
-                                    <th>Nama Item</th>
-                                    <th>Nama Pesanan</th>
-                                    <th>Qty Pesanan</th>
-                                    <th>Nama Bahan</th>
-                                    <th>Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>1</td>
-                                    <td>0003</td>
-                                    <td>stiker makanan</td>
-                                    <td>salma</td>
-                                    <td>13</td>
-                                    <td>vinyl</td>
-                                    <td>Rp 24.000</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="row mt-3">
-                        <div class="col-md-12 d-flex justify-content-end align-items-center gap-4">
-                            
-                            <div class="d-flex align-items-center gap-2">
-                                <label class="fw-bold mb-0">Total QTY</label>
-                                <input type="number" class="form-control border-dark text-center" style="width: 150px; border-radius: 8px;" readonly>
-                            </div>
-
-                            <div class="d-flex align-items-center gap-2">
-                                <label class="fw-bold mb-0">Total Harga</label>
-                                <input type="number" class="form-control border-dark text-center" style="width: 200px; border-radius: 8px;" readonly>
-                            </div>
-                            
-                        </div>
+                    <div class="mb-3">
+                        <label for="nominal_pembayaran" class="form-label fw-semibold">Nominal Pembayaran (Rp)</label>
+                        <input type="number" 
+                               name="nominal_pembayaran" 
+                               id="nominal_pembayaran" 
+                               class="form-control" 
+                               placeholder="Masukkan jumlah uang cicilan..." 
+                               required>
                     </div>
                     
-                    <div class="row mt-3">
-                        <div class="col-md-4">
-                            <div class="flex-input-group">
-                                <label class="fw-bold">Sisa Pembayaran</label>
-                                <input type="text" class="form-control form-control-sm border-dark" readonly>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-4">
-                            <div class="flex-input-group">
-                                <label class="fw-bold">Uang Muka</label>
-                                <input type="number" class="form-control form-control-sm border-dark"readonly>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-4">
-                            <div class="flex-input-group">
-                                <label class="fw-bold">Bayar Lunas</label>
-                                <input type="number" class="form-control form-control-sm border-dark"readonly>
-                            </div>
-                        </div>
+                    <div class="mb-3">
+                        <label for="keterangan" class="form-label fw-semibold">Keterangan (Opsional)</label>
+                        <textarea name="keterangan" 
+                                  id="keterangan" 
+                                  class="form-control" 
+                                  rows="2" 
+                                  placeholder="Contoh: Titip lewat sales / Transfer Mandiri"></textarea>
                     </div>
-
-                    <div class="d-flex justify-content-center gap-2 mt-4">
-                        <button type="button" 
-                                class="btn text-white px-4 rounded-pill shadow-sm" 
-                                style="background-color: #1A6B8D; font-weight: bold; font-size: 13px;"
-                                data-bs-toggle="modal" 
-                                data-bs-target="#modalBayarPiutang">
-                            Bayar
-                        </button>
-                    </div>
-                </form>
-            </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success fw-bold">Simpan Pembayaran</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -538,10 +367,36 @@
 </style>
 
 <script>
-    document.addEventListener('hidden.bs.modal', function () {
-        if (document.querySelectorAll('.modal.show').length > 0) {
-            document.body.classList.add('modal-open');
-        }
+document.addEventListener('DOMContentLoaded', function () {
+    // Tangkap semua tombol mata/detail piutang
+    const detailButtons = document.querySelectorAll('.btn-detail-piutang');
+    
+    detailButtons.forEach(button => {
+        button.addEventListener('click', function () {
+            // Ambil data-attributes dari tombol yang diklik
+            const piutangId = this.getAttribute('data-id');
+            const namaCustomer = this.getAttribute('data-nama');
+            const noOrder = this.getAttribute('data-noorder');
+            const namaOrder = this.getAttribute('data-namaorder');
+            const sisaPiutang = this.getAttribute('data-sisa');
+
+            // Suntik data ke elemen teks di dalam modal
+            document.getElementById('modalNamaCustomer').innerText = namaCustomer;
+            document.getElementById('modalNoOrder').innerText = noOrder;
+            document.getElementById('modalNamaOrder').innerText = namaOrder;
+            document.getElementById('modalSisaPiutang').innerText = 'Rp ' + parseInt(sisaPiutang).toLocaleString('id-ID');
+
+            // Atur batas maksimal input pembayaran agar tidak melebihi sisa piutang
+            const inputNominal = document.getElementById('nominal_pembayaran');
+            inputNominal.max = sisaPiutang;
+            inputNominal.value = ''; // Reset form input nominal
+            document.getElementById('keterangan').value = ''; // Reset form keterangan
+
+            // Ubah secara dinamis URL Form Action agar mengarah ke view bayar_cicilan sesuai ID
+            const formBayar = document.getElementById('formBayarCicilan');
+            formBayar.action = `/piutang/bayar/${piutangId}/`;
+        });
     });
+});
 </script>
 {% endblock %}
