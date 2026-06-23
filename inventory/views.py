@@ -5,11 +5,11 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.db.models import Q, Max, Sum
 from django.http import JsonResponse
-from .models import Suplier, Customer,List_Stok,JenisBarang, HargaStok, HargaJual, HargaJualBahan, ArusStok, OrderUtama, OrderDetail, PiutangPelanggan, CicilanPiutang
+from .models import Suplier, Customer,List_Stok,JenisBarang, HargaStok, HargaJual, HargaJualBahan, ArusStok, OrderUtama, OrderDetail, PiutangPelanggan, CicilanPiutang, Hutang
 from django.db import transaction
-from django.http import HttpResponse
 from django.utils import timezone
 import json
+from decimal import Decimal
 
 def login_view(request):
 
@@ -844,8 +844,6 @@ def edit_order(request, order_id):
             
     return redirect('/order/')
 
-
-
 #=====================================piutang=====================================
 @login_required(login_url='login')
 def piutang(request):
@@ -899,6 +897,38 @@ def bayar_cicilan(request, piutang_id):
 
     return redirect('piutang')
 
+#=====================================hutang=====================================
 @login_required(login_url='login')
 def hutang(request):
-    return HttpResponse("<h3>Halaman Data Hutang (Sedang dalam Perbaikan)</h3><a href='/order/'>Kembali ke Order</a>")
+    if request.method == 'POST':
+        hutang_id = request.POST.get('id_hutang')
+        nominal_cicil = request.POST.get('nominal_cicil')
+        
+        try:
+            nominal_cicil = Decimal(nominal_cicil.replace('.', '').replace(',', '.'))
+            hutang_obj = Hutang.objects.get(id=hutang_id)
+            arus_stok_obj = hutang_obj.arus_stok
+            
+            if nominal_cicil <= 0:
+                messages.error(request, "Nominal pembayaran harus lebih dari 0!")
+            elif nominal_cicil > hutang_obj.sisa_hutang:
+                sisa_formatted = f"{hutang_obj.sisa_hutang:,.0f}".replace(',', '.')
+                messages.error(request, f"Nominal pembayaran melebihi sisa utang (Maksimal Rp {sisa_formatted})")
+            else:
+                arus_stok_obj.pembayaran += nominal_cicil
+                arus_stok_obj.save() #
+                
+                cicil_formatted = f"{nominal_cicil:,.0f}".replace(',', '.')
+                messages.success(request, f"Berhasil membayar utang sebesar Rp {cicil_formatted}")
+                return redirect('hutang')
+                
+        except (Hutang.DoesNotExist, ValueError, TypeError):
+            messages.error(request, "Terjadi kesalahan saat memproses pembayaran utang.")
+            return redirect('hutang')
+
+    daftar_hutang = Hutang.objects.filter(status='Belum Lunas').order_by('-arus_stok__tanggal')
+    
+    context = {
+        'daftar_hutang': daftar_hutang,
+    }
+    return render(request, 'inventory/hutang.html', context)

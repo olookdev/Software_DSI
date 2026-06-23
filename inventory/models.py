@@ -47,14 +47,12 @@ class List_Stok(models.Model):
         return f"{self.kode_barang} - {self.nama_barang}"
 
 class HargaStok(models.Model):
-    """Tabel Master: Menampung daftar harga pasokan/kontrak terbaru dari supplier"""
     barang = models.ForeignKey('List_Stok', on_delete=models.CASCADE, related_name='daftar_harga')
     suplier = models.ForeignKey('Suplier', on_delete=models.CASCADE, related_name='harga_suplier')
     harga_satuan = models.DecimalField(max_digits=12, decimal_places=2, default=0)    
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        # Mencegah ada duplikasi kombinasi barang & supplier yang sama
         unique_together = ('barang', 'suplier')
 
     def __str__(self):
@@ -118,46 +116,46 @@ class ArusStok(models.Model):
         ('Pemakaian', 'Pemakaian (Stok Keluar)'),
     ]
     
-    # --- Data Dasar Transaksi ---
     tanggal = models.DateTimeField(default=timezone.now)
     jenis_arus = models.CharField(max_length=20, choices=JENIS_ARUS_CHOICES)
     barang = models.ForeignKey('List_Stok', on_delete=models.CASCADE, related_name='arus_stok')
     qty_arus = models.IntegerField(default=0)
     keterangan_arus = models.TextField(blank=True, null=True)
     suplier = models.ForeignKey('Suplier', on_delete=models.SET_NULL, blank=True, null=True, related_name='arus_suplier')
-    
-    # --- Data Keuangan (Historis Transaksi) ---
-    # Harga satuan saat barang ini dibeli (di-copy dari HargaStok saat save)
     harga_satuan = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    
-    # Jumlah uang yang sudah dibayarkan ke supplier
     pembayaran = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    
-    # Sisa utang/pembayaran yang belum dilunasi
     sisa_pembayaran = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    
-    # Tanggal jatuh tempo pembayaran utang (jika ada)
     tenggat_pembayaran = models.DateField(blank=True, null=True)
 
-    # --- Otomatisasi Perhitungan Total & Sisa ---
     @property
     def total_biaya(self):
-        """Menghitung total biaya secara langsung (QTY x Harga Satuan)"""
         return self.qty_arus * self.harga_satuan
 
     def save(self, *args, **kwargs):
-        """Override method save untuk mengotomatisasi hitungan sisa pembayaran sebelum masuk DB"""
         if self.jenis_arus == 'Pembelian':
-            # Otomatis hitung sisa pembayaran di backend agar data konsisten
             self.sisa_pembayaran = self.total_biaya - self.pembayaran
         else:
-            # Jika pemakaian biasa, nol-kan semua nilai keuangan
             self.harga_satuan = 0
             self.pembayaran = 0
             self.sisa_pembayaran = 0
             self.tenggat_pembayaran = None
             
         super(ArusStok, self).save(*args, **kwargs)
+
+        if self.jenis_arus == 'Pembelian':
+            if self.sisa_pembayaran > 0:
+                Hutang.objects.update_or_create(
+                    arus_stok=self,
+                    defaults={
+                        'sisa_hutang': self.sisa_pembayaran,
+                        'status': 'Belum Lunas'
+                    }
+                )
+            else:
+                Hutang.objects.filter(arus_stok=self).update(
+                    sisa_hutang=0,
+                    status='Lunas'
+                )
 
     def __str__(self):
         return f"{self.jenis_arus} - {self.barang.nama_barang} ({self.qty_arus})"
@@ -249,7 +247,7 @@ class CicilanPiutang(models.Model):
 
     def __str__(self):
         return f"Cicilan {self.piutang.order.no_order} - Rp {self.nominal_dicicil}"
-    
+
 @receiver(post_save, sender=OrderUtama)
 def otomatis_buat_piutang(sender, instance, created, **kwargs):
     if instance.sisa_bayar and float(instance.sisa_bayar) > 0:
@@ -265,4 +263,19 @@ def otomatis_buat_piutang(sender, instance, created, **kwargs):
         if piutang_exist:
             piutang_exist.sisa_piutang = 0
             piutang_exist.status = 'Lunas'
-            piutang_exist.save()
+            piutang_exist.save()    
+
+class Hutang(models.Model):
+    arus_stok = models.OneToOneField('ArusStok', on_delete=models.CASCADE, related_name='hutang_detail')
+    sisa_hutang = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    STATUS_CHOICES = [
+        ('Belum Lunas', 'Belum Lunas'),
+        ('Lunas', 'Lunas'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Belum Lunas')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        supplier_nama = self.arus_stok.suplier.nama_suplier if self.arus_stok.suplier else "Tanpa Supplier"
+        return f"Hutang - {supplier_nama} (Sisa: Rp {self.sisa_hutang})"

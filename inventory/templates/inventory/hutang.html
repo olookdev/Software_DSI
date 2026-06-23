@@ -15,97 +15,55 @@
                     <th style="width: 50px;">No</th>
                     <th>Kode Suplier</th>
                     <th>Nama Suplier</th>
-                    <th>Kode Order</th>
+                    <th>Kode Barang</th>
                     <th>Tanggal Order</th>
-                    <th>Sisa Hutang</th>
-                    <th>Aksi</th> 
+                    <th>Tenggat Pembayaran</th>
+                    <th style="text-align: right;">Sisa Hutang</th>
+                    <th style="text-align: center;">Aksi</th> 
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>1</td>
-                    <td>S001</td>
-                    <td>mas yog</td>
-                    <td>0001</td>
-                    <td>23-04-2026</td>
-                    <td>100.00</td>
+                {% for h in daftar_hutang %}
+                <tr class="row-hutang" 
+                    data-hutang-id="{{ h.id }}"
+                    data-tanggal="{{ h.arus_stok.tanggal|date:'l, d F Y' }}"
+                    data-nama-barang="{{ h.arus_stok.barang.nama_barang }}"
+                    data-kode-barang="{{ h.arus_stok.barang.kode_barang }}"
+                    data-keterangan="{{ h.arus_stok.keterangan_arus|default:'-' }}"
+                    data-qty="{{ h.arus_stok.qty_arus }}"
+                    data-suplier-nama="{{ h.arus_stok.suplier.nama_suplier|default:'-' }}"
+                    data-harga="{{ h.arus_stok.harga_satuan|stringformat:'.2f' }}"
+                    data-total="{{ h.arus_stok.total_biaya|stringformat:'.2f' }}"
+                    data-sisa="{{ h.sisa_hutang|stringformat:'.2f' }}">
+                    
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ h.arus_stok.suplier.kode_suplier|default:'-' }}</td>
+                    <td><strong>{{ h.arus_stok.suplier.nama_suplier|default:'-' }}</strong></td>
+                    <td>{{ h.arus_stok.barang.kode_barang }}</td>
+                    <td>{{ h.arus_stok.tanggal|date:"d-m-Y" }}</td>
+                    <td>
+                        {% if h.arus_stok.tenggat_pembayaran %}
+                            {{ h.arus_stok.tenggat_pembayaran|date:"d-m-Y" }}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; color: #dc3545; font-weight: bold;">Rp {{ h.sisa_hutang|floatformat:0 }}</td>
                     <td class="text-center">
-                        <div class="d-flex gap-2 justify-content-center align-items-center " style="margin-left: -90px;">
-                            <button class="btn-action-outline" data-bs-toggle="modal" data-bs-target="#modalDetailHutang">
+                        <div class="d-flex gap-2 justify-content-center align-items-center">
+                            <button class="btn-action-outline btn-detail-hutang" data-bs-toggle="modal" data-bs-target="#modalBayarHutang">
                                 <i class="bi bi-eye"></i>
-                            </button>
-                            <button class="btn-action-outline" data-bs-toggle="modal" data-bs-target="#modalBayarHutang">
-                                <i class="bi bi-cash"></i>
                             </button>
                         </div>
                     </td>
                 </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center py-4 text-muted">Tidak ada data hutang.</td>
+                </tr>
+                {% endfor %}
             </tbody>
         </table>
-    </div>
-</div>
-
-<div class="modal fade" id="modalDetailHutang" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered"> 
-        <div class="modal-content custom-modal-style">
-            <button type="button" class="custom-close-btn" data-bs-dismiss="modal">
-                <i class="bi bi-x-circle-fill"></i>
-            </button>
-            <div class="modal-body p-4">
-                <h2 class="text-center fw-bold mb-4">Detail Hutang</h2>                        
-                <form action="" method="POST">
-                    {% csrf_token %}
-                    <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Hari/Tanggal</label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
-                        </div>
-                    </div>
-                    <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Nama Barang</label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
-                        </div>
-                    </div>
-                    <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Kode Barang</label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
-                        </div>
-                    </div>
-                    <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Keterangan</label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
-                        </div>
-                    </div>
-                    <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">QTY</label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
-                        </div>
-                    </div>
-                    <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Suplier</label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
-                        </div>
-                    </div>
-                    <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Harga@</label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
-                        </div>
-                    </div>
-                    <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Total</label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -119,70 +77,73 @@
                 <h2 class="text-center fw-bold mb-4">Detail Hutang</h2>                        
                 <form action="" method="POST">
                     {% csrf_token %}
+                    
+                    <input type="hidden" name="id_hutang" id="modal-hutang-id">
+
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Hari/Tanggal</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
+                            <input type="text" class="form-control border-dark bg-light" id="modal-tanggal" readonly>
                         </div>
                     </div>
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Nama Barang</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
+                            <input type="text" class="form-control border-dark bg-light" id="modal-nama-barang" readonly>
                         </div>
                     </div>
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Kode Barang</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
+                            <input type="text" class="form-control border-dark bg-light" id="modal-kode-barang" readonly>
                         </div>
                     </div>
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Keterangan</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
+                            <input type="text" class="form-control border-dark bg-light" id="modal-keterangan" readonly>
                         </div>
                     </div>
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">QTY</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
+                            <input type="text" class="form-control border-dark bg-light" id="modal-qty" readonly>
                         </div>
                     </div>
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Suplier</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
+                            <input type="text" class="form-control border-dark bg-light" id="modal-suplier" readonly>
                         </div>
                     </div>
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Harga@</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
+                            <input type="text" class="form-control border-dark bg-light text-end" id="modal-harga" readonly>
                         </div>
                     </div>
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Total</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
+                            <input type="text" class="form-control border-dark bg-light text-end" id="modal-total" readonly>
                         </div>
                     </div>
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Tanggal Pembayaran</label>
                         <div class="col-sm-8">
-                            <input type="date" class="form-control border-dark">
+                            <input type="date" class="form-control border-dark" id="modal-tgl-bayar" name="tanggal_pembayaran" required readonly>
                         </div>
                     </div>
                     <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Nominal</label>
+                        <label class="col-sm-4 col-form-label fw-bold">Nominal Cicil</label>
                         <div class="col-sm-8">
-                            <input type="number" class="form-control border-dark">
+                            <input type="number" class="form-control border-dark text-end" id="modal-nominal-cicil" name="nominal_cicil" required>
                         </div>
                     </div>
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Sisa Hutang</label>
                         <div class="col-sm-8">
-                            <input type="number" class="form-control border-dark" readonly>
+                            <input type="text" class="form-control border-dark bg-light text-end fw-bold text-danger" id="modal-sisa-hutang" readonly>
                         </div>
                     </div>
                     <div class="d-flex justify-content-center gap-3">
@@ -332,4 +293,50 @@
         font-weight: bold;
     }   
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const detailButtons = document.querySelectorAll('.btn-detail-hutang');
+    
+    detailButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const row = this.closest('.row-hutang');
+            
+            // Ambil data dari atribut data-* TR
+            const hutangId = row.getAttribute('data-hutang-id');
+            const tanggal = row.getAttribute('data-tanggal');
+            const namaBarang = row.getAttribute('data-nama-barang');
+            const kodeBarang = row.getAttribute('data-kode-barang');
+            const keterangan = row.getAttribute('data-keterangan');
+            const qty = row.getAttribute('data-qty');
+            const suplier = row.getAttribute('data-suplier-nama');
+            const harga = parseFloat(row.getAttribute('data-harga')) || 0;
+            const total = parseFloat(row.getAttribute('data-total')) || 0;
+            const sisa = parseFloat(row.getAttribute('data-sisa')) || 0;
+
+            // Masukkan nilai ke input modal
+            document.getElementById('modal-hutang-id').value = hutangId;
+            document.getElementById('modal-tanggal').value = tanggal;
+            document.getElementById('modal-nama-barang').value = namaBarang;
+            document.getElementById('modal-kode-barang').value = kodeBarang;
+            document.getElementById('modal-keterangan').value = keterangan;
+            document.getElementById('modal-qty').value = qty;
+            document.getElementById('modal-suplier').value = suplier;
+            
+            // Format Rupiah Tampilan
+            document.getElementById('modal-harga').value = formatRibuan(harga);
+            document.getElementById('modal-total').value = formatRibuan(total);
+            document.getElementById('modal-sisa-hutang').value = formatRibuan(sisa);
+            
+            // Mengatur default tanggal pembayaran ke hari ini
+            const hariIni = new Date().toISOString().split('T')[0];
+            document.getElementById('modal-tgl-bayar').value = hariIni;
+        });
+    });
+});
+
+function formatRibuan(angka) {
+    return "Rp " + new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(angka);
+}
+</script>
 {% endblock %}
