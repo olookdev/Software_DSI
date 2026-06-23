@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path
 from inventory.views import (
     login_view, logout_view, list_stok, data_customer, data_suplier, 
-    daftar_harga, hutang, piutang, edit_suplier, edit_customer, edit_stok, 
+    daftar_harga, piutang, edit_suplier, edit_customer, edit_stok, 
     hapus_harga, hapus_harga_jual, edit_harga_jual, daftar_harga_jual, 
     tambah_jenis, hapus_stok, edit_harga_stok, tambah_arus_stok, log_arus_stok,
     edit_arus_stok, hapus_arus_stok, hapus_customer, hapus_suplier,  list_order, cari_customer, tambah_order,
@@ -21,13 +21,13 @@ urlpatterns = [
     path('daftar_harga/', daftar_harga, name='daftar_harga'),
 
     # Harga Stok
-    path('daftar_harga/edit-stok/', edit_harga_stok, name='edit_harga_stok'),
-    path('daftar_harga/hapus/<int:id>/', hapus_harga, name='hapus_harga'),
+    path('daftar-harga/edit-stok/', edit_harga_stok, name='edit_harga_stok'),
+    path('daftar-harga/hapus/<int:id>/', hapus_harga, name='hapus_harga'),
 
     # Harga Jual
-    path('harga_jual/', daftar_harga_jual, name='daftar_harga_jual'),
-    path('harga_jual/edit/', edit_harga_jual, name='edit_harga_jual'),
-    path('harga_jual/hapus/<int:id>/', hapus_harga_jual, name='hapus_harga_jual'),
+    path('harga-jual/', daftar_harga_jual, name='daftar_harga_jual'),
+    path('harga-jual/edit/', edit_harga_jual, name='edit_harga_jual'),
+    path('harga-jual/hapus/<int:id>/', hapus_harga_jual, name='hapus_harga_jual'),
 
     # Stok 
     path('stok/', list_stok, name='list_stok'), 
@@ -52,7 +52,7 @@ urlpatterns = [
     path('suplier/edit/', edit_suplier, name='edit_suplier'),
     path('suplier/hapus/<int:pk>/', hapus_suplier, name='hapus_suplier'),
     
-    # Keuangan
+    # hutang
     path('hutang/', hutang, name='hutang'),
 
     #order
