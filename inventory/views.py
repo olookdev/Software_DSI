@@ -466,9 +466,9 @@ def hapus_harga_jual(request, id):
     hj.delete()
     return redirect('/daftar_harga/#harga-jual')
 
-#========================arus stok ========================
+# ======================== ARUS STOK ========================
 def log_arus_stok(request):
-    arus_stok_list = ArusStok.objects.all().select_related('barang').order_by('-tanggal')
+    arus_stok_list = ArusStok.objects.all().select_related('barang', 'suplier').order_by('-tanggal')
     semua_barang = List_Stok.objects.all().order_by('nama_barang')
     semua_suplier = Suplier.objects.all().order_by('nama_suplier')
 
@@ -479,6 +479,7 @@ def log_arus_stok(request):
     }
     return render(request, 'inventory/arus_stok.html', context)
 
+
 def tambah_arus_stok(request):
     if request.method == "POST":
         v_jenis_arus = request.POST.get('jenis_arus')      
@@ -487,10 +488,14 @@ def tambah_arus_stok(request):
         v_keterangan = request.POST.get('keterangan_arus')
         v_suplier_id = request.POST.get('suplier')       
         v_harga = request.POST.get('harga_satuan')        
+        
+        # --- TANGKAP INPUTAN BARU ---
+        v_pembayaran = request.POST.get('pembayaran')
+        v_tenggat = request.POST.get('tenggat_pembayaran')
 
         if not v_jenis_arus or not v_barang_id or not v_qty:
             messages.error(request, "Gagal! Data barang dan kuantitas wajib diisi.")
-            return redirect('/stok/?tab=arus') 
+            return redirect('log_arus_stok') 
 
         try:
             with transaction.atomic():
@@ -498,30 +503,38 @@ def tambah_arus_stok(request):
                 qty_arus = float(v_qty)
                 suplier_obj = None
                 harga_satuan = 0
+                pembayaran = 0
+                tenggat_pembayaran = None
                 
-                if v_jenis_arus == 'Pembelian':
-                    harga_satuan = float(v_harga or 0)
-                    if v_suplier_id:
-                        suplier_obj = Suplier.objects.get(id=v_suplier_id)
-
                 if v_jenis_arus == 'Pemakaian':
                     if float(barang.qty) < qty_arus:
-                        messages.error(request, f"Gagal! Stok '{barang.nama_barang}' tidak mencukupi. Stok saat ini: {barang.qty}")
-                        return redirect('/stok/?tab=arus')
-
+                        raise ValueError(f"Stok '{barang.nama_barang}' tidak mencukupi. Stok saat ini hanya {barang.qty} pcs, sedangkan Anda menginput {qty_arus} pcs.")
+                    
                     barang.qty = float(barang.qty) - qty_arus
-                else:
+
+                elif v_jenis_arus == 'Pembelian':
+                    harga_satuan = float(v_harga or 0)
+                    pembayaran = float(v_pembayaran or 0)
+                    if v_tenggat:
+                        tenggat_pembayaran = v_tenggat
+                        
+                    if v_suplier_id:
+                        suplier_obj = Suplier.objects.get(id=v_suplier_id)
+                    
                     barang.qty = float(barang.qty) + qty_arus
                 
                 barang.save()
 
+                # Simpan ke Database (Perhitungan Sisa Pembayaran ditangani otomatis oleh model.py saat .save())
                 ArusStok.objects.create(
                     barang=barang,
                     jenis_arus=v_jenis_arus,
                     qty_arus=qty_arus,
                     keterangan_arus=v_keterangan,
                     suplier=suplier_obj,
-                    harga_satuan=harga_satuan
+                    harga_satuan=harga_satuan,
+                    pembayaran=pembayaran,
+                    tenggat_pembayaran=tenggat_pembayaran
                 )
 
                 messages.success(request, f"Berhasil mencatat {v_jenis_arus} untuk barang: {barang.nama_barang}.")
@@ -530,10 +543,13 @@ def tambah_arus_stok(request):
             messages.error(request, "Gagal! Data barang tidak ditemukan di sistem.")
         except Suplier.DoesNotExist:
             messages.error(request, "Gagal! Data Supplier tidak valid.")
+        except ValueError as e:
+            messages.error(request, f"Gagal! {str(e)}")
         except Exception as e:
             messages.error(request, f"Terjadi kesalahan sistem: {str(e)}")
 
-    return redirect('/stok/?tab=arus')
+    return redirect('log_arus_stok')
+
 
 def edit_arus_stok(request, pk):
     if request.method == "POST":
@@ -542,15 +558,24 @@ def edit_arus_stok(request, pk):
             v_keterangan = request.POST.get('keterangan_arus')
             v_suplier_id = request.POST.get('suplier')
             v_harga = request.POST.get('harga_satuan')
+            
+            # --- TANGKAP INPUTAN EDIT BARU ---
+            v_pembayaran = request.POST.get('pembayaran')
+            v_tenggat = request.POST.get('tenggat_pembayaran')
+
             arus.keterangan_arus = v_keterangan
 
             if arus.jenis_arus == 'Pembelian':
                 arus.harga_satuan = float(v_harga or 0)
+                arus.pembayaran = float(v_pembayaran or 0)
+                arus.tenggat_pembayaran = v_tenggat if v_tenggat else None
+                
                 if v_suplier_id:
                     arus.suplier = Suplier.objects.get(id=v_suplier_id)
                 else:
                     arus.suplier = None
 
+            # .save() di bawah ini akan otomatis mengalkulasi sisa_pembayaran terbaru
             arus.save()
             messages.success(request, f"Berhasil memperbarui data riwayat arus stok.")
 
@@ -560,6 +585,7 @@ def edit_arus_stok(request, pk):
             messages.error(request, f"Terjadi kesalahan sistem: {str(e)}")
 
     return redirect('log_arus_stok')
+
 
 def hapus_arus_stok(request, pk):
     try:
@@ -575,6 +601,7 @@ def hapus_arus_stok(request, pk):
                 barang.qty = float(barang.qty) - qty_arus
             else:
                 barang.qty = float(barang.qty) + qty_arus
+                
             barang.save()
             arus.delete()
             
@@ -586,6 +613,20 @@ def hapus_arus_stok(request, pk):
         messages.error(request, f"Terjadi kesalahan sistem: {str(e)}")
 
     return redirect('log_arus_stok')
+
+
+def ambil_harga_satuan(request):
+    barang_id = request.GET.get('barang_id')
+    suplier_id = request.GET.get('suplier_id')
+    
+    if barang_id and suplier_id:
+        try:
+            harga_obj = HargaStok.objects.get(barang_id=barang_id, suplier_id=suplier_id)
+            return JsonResponse({'status': 'success', 'harga_satuan': float(harga_obj.harga_satuan)})
+        except HargaStok.DoesNotExist:
+            return JsonResponse({'status': 'not_found', 'harga_satuan': 0})
+            
+    return JsonResponse({'status': 'error', 'message': 'Parameter tidak lengkap'}, status=400)
 
 #================================================Order================================================
 def titik_uang(nilai_string):
