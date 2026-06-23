@@ -5,10 +5,11 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.db.models import Q, Max, Sum
 from django.http import JsonResponse
-from .models import Suplier, Customer,List_Stok,JenisBarang, HargaStok, HargaJual, HargaJualBahan, ArusStok, OrderUtama, OrderDetail, PiutangPelanggan, CicilanPiutang
+from .models import Suplier, Customer,List_Stok,JenisBarang, HargaStok, HargaJual, HargaJualBahan, ArusStok, OrderUtama, OrderDetail, PiutangPelanggan, CicilanPiutang, Transaksi
 from django.db import transaction
 from django.http import HttpResponse
 from django.utils import timezone
+from decimal import Decimal
 import json
 
 def login_view(request):
@@ -902,3 +903,33 @@ def bayar_cicilan(request, piutang_id):
 @login_required(login_url='login')
 def hutang(request):
     return HttpResponse("<h3>Halaman Data Hutang (Sedang dalam Perbaikan)</h3><a href='/order/'>Kembali ke Order</a>")
+
+@login_required(login_url='login')
+def transaksi(request):
+    
+    if request.method == 'POST':
+        tanggal = request.POST.get('tanggal')
+        keterangan = request.POST.get('keterangan')
+        jenis = request.POST.get('jenis')
+        nominal = request.POST.get('nominal')
+        
+        Transaksi.objects.create(
+            tanggal=tanggal,
+            keterangan=keterangan,
+            jenis=jenis,
+            nominal=Decimal(nominal)
+        )
+        
+        return redirect('transaksi')
+    
+    daftar_transaksi = Transaksi.objects.all()
+    context = {
+        'daftar_transaksi': daftar_transaksi
+    }
+    return render(request, 'inventory/transaksi.html', context)
+
+@login_required(login_url='login')
+def hapus_transaksi(request, id):
+    transaksi = get_object_or_404(Transaksi, id=id)
+    transaksi.delete()
+    return redirect('transaksi')

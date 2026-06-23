@@ -208,7 +208,7 @@
             <a href="{% url 'piutang' %}" class="sidebar-link {% if request.resolver_match.url_name == 'piutang' %}active{% endif %}">
                 Piutang
             </a>
-            <a href="#" class="sidebar-link">Transaksi</a>
+            <a href="{% url 'transaksi' %}" class="sidebar-link">Transaksi</a>
             <div style="margin-top: 50px;">
                 <hr>
                 <a href="#" class="sidebar-link text-muted">Export To Excel</a>

@@ -266,3 +266,14 @@ def otomatis_buat_piutang(sender, instance, created, **kwargs):
             piutang_exist.sisa_piutang = 0
             piutang_exist.status = 'Lunas'
             piutang_exist.save()
+            
+class Transaksi(models.Model):
+    class Jenis(models.TextChoices):
+        PEMASUKAN = "pemasukan"
+        PENGELUARAN = "pengeluaran"
+    
+    tanggal = models.DateField(auto_now=False, auto_now_add=False, help_text="tanggal transaksi dibuat")
+    keterangan = models.TextField(blank=True, null=True, help_text="keterangan transaksi")
+    jenis = models.CharField(max_length=11, choices=Jenis.choices, help_text="jenis transaksi pemasukan atau pengeluaran")
+    nominal = models.DecimalField(max_digits=15, decimal_places=2, help_text="nominal transaksi")
+    
