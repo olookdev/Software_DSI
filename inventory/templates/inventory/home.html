@@ -1,0 +1,322 @@
+{% extends 'inventory/base.html' %}
+
+{% block page_title %}Home{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow border-0 p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex gap-2 align-items-center">
+                        <button class="btn btn-outline-dark btn-sm" id="btn-prev"><i class="bi bi-chevron-left"></i></button>
+                        <button class="btn btn-outline-dark btn-sm" id="btn-next"><i class="bi bi-chevron-right"></i></button>
+                        <button class="btn btn-secondary btn-sm fw-bold px-3" id="btn-today">Hari Ini</button>
+                    </div>
+                    <h3 class="fw-bold mb-0" id="month-year-title">Juni 2026</h3>
+                </div>
+                
+                <div class="calendar-grid">
+                    <div class="day-name">Min</div>
+                    <div class="day-name">Sen</div>
+                    <div class="day-name">Sel</div>
+                    <div class="day-name">Rab</div>
+                    <div class="day-name">Kam</div>
+                    <div class="day-name">Jum</div>
+                    <div class="day-name">Sab</div>
+                </div>
+                <div class="calendar-grid mt-2" id="calendar-days">
+                    </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow border-0 p-4 bg-light d-flex flex-column justify-content-between" style="min-height: 400px;">
+                <div>
+                    <h4 class="fw-bold mb-3" id="selected-date-title">Agenda Hari Ini</h4>
+                    <hr>
+                    <div id="event-list-container">
+                        <p class="text-muted">Pilih tanggal untuk melihat detail kegiatan.</p>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end mt-3">
+                    {% include 'components/btn_plus.html' with modal_id="tambahkegiatan" %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="tambahkegiatan" tabindex="-1" aria-labelledby="tambahkegiatanLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content"
+            style="position: relative; border-radius: 16px; border: none; box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.15);">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="tambahkegiatanLabel">Tambah Kegiatan Baru</h5>
+                <button type="button" class="custom-close-btn" data-bs-dismiss="modal" aria-label="Close">
+                    <i class="bi bi-x-circle-fill"></i>
+                </button>
+            </div>
+            <form method="POST" action="{% url 'home' %}">
+                {% csrf_token %}
+                <div class="modal-body py-4">
+
+                    <input type="hidden" name="tanggal" id="modal-kegiatan-tanggal">
+
+                    <div class="flex-input-group">
+                        <label for="kegiatan">Kegiatan</label>
+                        <input type="text" name="kegiatan" id="kegiatan" class="form-control" required>
+                    </div>
+
+                    <div class="flex-input-group">
+                        <label for="deskripsi">deskripsi</label>
+                        <input type="text" name="deskripsi" id="deskripsi" class="form-control">
+                    </div>
+                </div>
+                
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-secondary px-4 rounded-pill"
+                        data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary px-4 rounded-pill"
+                        style="background-color: #1A6B8D; border: none;">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div> 
+
+<style>
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 10px;
+        text-align: center;
+    }
+    .day-name {
+        font-weight: bold;
+        color: #6c757d;
+        padding-bottom: 5px;
+    }
+    .calendar-day {
+        min-height: 70px;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 5px;
+        cursor: pointer;
+        background-color: #fff;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: all 0.2s;
+    }
+    .calendar-day:hover {
+        background-color: #f8f9fa;
+        border-color: #dee2e6;
+    }
+    .calendar-day.today-day {
+        background-color: #fff3cd; /* Warna kuning soft */
+        border: 2px solid #ffc107; /* Border kuning tegas */
+    }
+    .calendar-day.today-day .day-number {
+        color: #856404;
+        font-weight: bold;
+    }
+    /* Style untuk tanggal yang sedang diklik/dipilih */
+    .calendar-day.active-day {
+        background-color: #e8f0fe;
+        border-color: #1a73e8;
+    }
+    .calendar-day.empty-day {
+        background-color: #fdfdfd;
+        cursor: default;
+        border: none;
+    }
+    .day-number {
+        font-weight: 500;
+        font-size: 0.95rem;
+    }
+    .dots-container {
+        display: flex;
+        gap: 4px;
+        justify-content: center;
+        margin-top: 5px;
+    }
+    .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .dot-debt { background-color: #dc3545; } 
+    .dot-general { background-color: #0d6efd; } 
+
+    .custom-close-btn {
+        position: absolute;
+        top: -15px;
+        right: -15px;
+        background: white;
+        border: none;
+        color: #ff0000;
+        font-size: 32px;
+        line-height: 1;
+        border-radius: 50%;
+        z-index: 1060;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .custom-close-btn:hover {
+        transform: scale(1.1);
+        color: #cc0000;
+    }
+
+    .btn-hapus {
+        color: #8B0000;
+        border: none;
+        padding: 8px 35px;
+        border-radius: 25px;
+        font-weight: bold;
+    }
+
+    .flex-input-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .flex-input-group label {
+        width: 130px;
+        font-size: 13px;
+        margin-bottom: 0;
+    }
+
+    .flex-input-group .form-control,
+    .flex-input-group .form-select {
+        flex: 1;
+    }
+    
+</style>
+
+<script>
+    const eventsData = JSON.parse('{{ events_json|safe }}');
+    
+    let currentDate = new Date(); // Objek date penunjuk halaman kalender saat ini
+    const realToday = new Date(); // Objek date konstan pengunci hari ini asli
+    
+    // Variabel global untuk melacak tanggal yang sedang aktif dipilih secara interaktif
+    let selectedDateKey = ""; 
+    
+    const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+    function renderCalendar() {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+
+        // Judul Bulan & Tahun
+        document.getElementById('month-year-title').innerText = `${namaBulan[month]} ${year}`;
+
+        const firstDayIndex = new Date(year, month, 1).getDay();
+        const lastDay = new Date(year, month + 1, 0).getDate();
+
+        const daysContainer = document.getElementById('calendar-days');
+        daysContainer.innerHTML = '';
+
+        // Render kotak kosong sebelum tanggal 1
+        for (let i = 0; i < firstDayIndex; i++) {
+            daysContainer.innerHTML += `<div class="calendar-day empty-day"></div>`;
+        }
+
+        // Render tanggal asli 1 sampai terakhir
+        for (let day = 1; day <= lastDay; day++) {
+            const formatDay = day < 10 ? '0' + day : day;
+            const formatMonth = (month + 1) < 10 ? '0' + (month + 1) : (month + 1);
+            const dateKey = `${year}-${formatMonth}-${formatDay}`;
+
+            // Cek apakah tanggal yang sedang di-render adalah Hari Ini yang asli
+            let isTodayClass = '';
+            if (day === realToday.getDate() && month === realToday.getMonth() && year === realToday.getFullYear()) {
+                isTodayClass = 'today-day';
+            }
+
+            let dotsHtml = '';
+            if (eventsData[dateKey]) {
+                dotsHtml = '<div class="dots-container">';
+                eventsData[dateKey].forEach(ev => {
+                    dotsHtml += `<span class="dot dot-${ev.tipe}"></span>`;
+                });
+                dotsHtml += '</div>';
+            }
+
+            daysContainer.innerHTML += `
+                <div class="calendar-day ${isTodayClass}" id="day-cell-${dateKey}" onclick="showEventDetail('${dateKey}', ${day})">
+                    <span class="day-number">${day}</span>
+                    ${dotsHtml}
+                </div>
+            `;
+        }
+    }
+
+    function showEventDetail(dateKey, day) {
+        // Simpan tanggal yang dipilih ke variabel global
+        selectedDateKey = dateKey;
+        
+        // ISI OTOMATIS INPUT HIDDEN DI DALAM MODAL TAMBAH KEGIATAN
+        const inputTanggalModal = document.getElementById('modal-kegiatan-tanggal');
+        if (inputTanggalModal) {
+            inputTanggalModal.value = dateKey;
+        }
+
+        document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('active-day'));
+        const activeCell = document.getElementById(`day-cell-${dateKey}`);
+        if(activeCell) activeCell.classList.add('active-day');
+
+        const container = document.getElementById('event-list-container');
+        document.getElementById('selected-date-title').innerText = `Agenda Tanggal ${day}`;
+        
+        if (eventsData[dateKey] && eventsData[dateKey].length > 0) {
+            let html = '<div class="list-group">';
+            eventsData[dateKey].forEach(ev => {
+                const badgeColor = ev.tipe === 'debt' ? 'bg-danger' : 'bg-primary';
+                html += `
+                    <div class="list-group-item border-4 shadow-sm mb-2 rounded p-3">
+                        <h6 class="fw-bold mb-1">${ev.judul}</h6>
+                        <small class="text-muted d-block">${ev.detail}</small>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = '<p class="text-muted">Tidak ada agenda atau tagihan di tanggal ini.</p>';
+        }
+    }
+
+    // Navigasi Bulan
+    document.getElementById('btn-prev').addEventListener('click', () => {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+        renderCalendar();
+    });
+    document.getElementById('btn-next').addEventListener('click', () => {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        renderCalendar();
+    });
+
+    // LOGIK TOMBOL KEMBALI KE HARI INI
+    document.getElementById('btn-today').addEventListener('click', () => {
+        currentDate = new Date(); // Kembalikan pointer bulan ke bulan berjalan saat ini
+        renderCalendar();         // Render ulang kalender
+        
+        // Otomatis klik/tampilkan agenda hari ini jika ada
+        const formatDay = realToday.getDate() < 10 ? '0' + realToday.getDate() : realToday.getDate();
+        const formatMonth = (realToday.getMonth() + 1) < 10 ? '0' + (realToday.getMonth() + 1) : (realToday.getMonth() + 1);
+        const todayKey = `${realToday.getFullYear()}-${formatMonth}-${formatDay}`;
+        showEventDetail(todayKey, realToday.getDate());
+    });
+
+    // Jalankan kalender & panggil detail hari ini saat pertama kali load
+    renderCalendar();
+    document.getElementById('btn-today').click(); // Otomatis trigger ke hari ini saat pertama buka
+</script>
+{% endblock %}

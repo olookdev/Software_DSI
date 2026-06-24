@@ -6,7 +6,8 @@ from inventory.views import (
     hapus_harga, hapus_harga_jual, edit_harga_jual, daftar_harga_jual, 
     tambah_jenis, hapus_stok, edit_harga_stok, tambah_arus_stok, log_arus_stok,
     edit_arus_stok, hapus_arus_stok, hapus_customer, hapus_suplier,  list_order, cari_customer, tambah_order,
-    kode_order, cari_produk, get_order_items, edit_order, bayar_cicilan, ambil_harga_satuan, transaksi, hapus_transaksi, hutang
+    kode_order, cari_produk, get_order_items, edit_order, bayar_cicilan, ambil_harga_satuan, transaksi, hapus_transaksi, hutang,
+    home
 )
 
 urlpatterns = [
@@ -16,6 +17,9 @@ urlpatterns = [
     path('', login_view, name='home'),
     path('login/', login_view, name='login'),
     path('logout/', logout_view, name='logout'),
+
+    # home
+    path('home/', home, name='home'),
     
     # Utama
     path('daftar_harga/', daftar_harga, name='daftar_harga'),

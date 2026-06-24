@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.db.models import Q, Max, Sum
 from django.http import JsonResponse
-from .models import Suplier, Customer,List_Stok,JenisBarang, HargaStok, HargaJual, HargaJualBahan, ArusStok, OrderUtama, OrderDetail, PiutangPelanggan, CicilanPiutang, Transaksi, Hutang
+from .models import Suplier, Customer,List_Stok,JenisBarang, HargaStok, HargaJual, HargaJualBahan, ArusStok, OrderUtama, OrderDetail, PiutangPelanggan, CicilanPiutang, Transaksi, Hutang, Kegiatan
 from django.db import transaction
 from django.utils import timezone
 from decimal import Decimal
@@ -26,7 +26,7 @@ def login_view(request):
         
         if user is not None:
             login(request, user)
-            return redirect('list_order')   
+            return redirect('home')   
         else:
             messages.error(request, "Username atau Password salah!")
             
@@ -965,3 +965,60 @@ def hapus_transaksi(request, id):
     transaksi = get_object_or_404(Transaksi, id=id)
     transaksi.delete()
     return redirect('transaksi')
+
+
+#=========================home=======================
+@login_required(login_url='login')
+def home(request):
+    if request.method == 'POST':
+        kegiatan_nama = request.POST.get('kegiatan')
+        deskripsi = request.POST.get('deskripsi')
+        tanggal = request.POST.get('tanggal') 
+
+        if kegiatan_nama and tanggal:
+            Kegiatan.objects.create(
+                kegiatan=kegiatan_nama,
+                deskripsi=deskripsi,
+                tanggal=tanggal
+            )
+            messages.success(request, "Kegiatan baru berhasil ditambahkan!")
+        else:
+            messages.error(request, "Gagal menambahkan kegiatan. Data tidak lengkap.")
+        
+        return redirect('home') 
+
+    daftar_hutang = Hutang.objects.filter(
+        status='Belum Lunas', 
+        arus_stok__tenggat_pembayaran__isnull=False
+    )
+    
+    daftar_kegiatan = Kegiatan.objects.all()
+
+    events_data = {}
+
+    for h in daftar_hutang:
+        tgl_str = h.arus_stok.tenggat_pembayaran.strftime('%Y-%m-%d')
+        if tgl_str not in events_data:
+            events_data[tgl_str] = []
+        
+        supplier_nama = h.arus_stok.suplier.nama_suplier if h.arus_stok.suplier else "Supplier"
+        events_data[tgl_str].append({
+            'tipe': 'debt',
+            'judul': f"Bayar Hutang: {supplier_nama}",
+            'detail': f"Sisa Hutang: Rp {h.sisa_hutang:,.0f}".replace(',', '.')
+        })
+
+    for k in daftar_kegiatan:
+        tgl_str = k.tanggal.strftime('%Y-%m-%d')
+        if tgl_str not in events_data:
+            events_data[tgl_str] = []
+        events_data[tgl_str].append({
+            'tipe': 'general',
+            'judul': k.kegiatan,
+            'detail': k.deskripsi or '-'
+        })
+
+    context = {
+        'events_json': json.dumps(events_data)
+    }
+    return render(request, 'inventory/home.html', context)

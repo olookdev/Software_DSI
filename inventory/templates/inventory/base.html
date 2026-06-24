@@ -187,6 +187,9 @@
             </button>
         </div>
         <div class="sidebar-menu">
+            <a href="{% url 'home' %}" class="sidebar-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+                Home
+            </a>
             <a href="{% url 'list_order' %}" class="sidebar-link {% if request.resolver_match.url_name == 'list_order' %}active{% endif %}">
                 Order
             </a>

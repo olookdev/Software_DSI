@@ -290,3 +290,12 @@ class Hutang(models.Model):
     def __str__(self):
         supplier_nama = self.arus_stok.suplier.nama_suplier if self.arus_stok.suplier else "Tanpa Supplier"
         return f"Hutang - {supplier_nama} (Sisa: Rp {self.sisa_hutang})"
+    
+class Kegiatan(models.Model):
+    kegiatan = models.CharField(max_length=200)
+    deskripsi = models.TextField(blank=True, null=True)
+    tanggal = models.DateField()
+    created_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.kegiatan} ({self.tanggal})"
