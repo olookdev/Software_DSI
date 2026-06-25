@@ -971,21 +971,31 @@ def hapus_transaksi(request, id):
 @login_required(login_url='login')
 def home(request):
     if request.method == 'POST':
-        kegiatan_nama = request.POST.get('kegiatan')
-        deskripsi = request.POST.get('deskripsi')
-        tanggal = request.POST.get('tanggal') 
-
-        if kegiatan_nama and tanggal:
-            Kegiatan.objects.create(
-                kegiatan=kegiatan_nama,
-                deskripsi=deskripsi,
-                tanggal=tanggal
-            )
-            messages.success(request, "Kegiatan baru berhasil ditambahkan!")
-        else:
-            messages.error(request, "Gagal menambahkan kegiatan. Data tidak lengkap.")
+        action = request.POST.get('action') 
         
-        return redirect('home') 
+        if action == 'delete':
+            kegiatan_id = request.POST.get('kegiatan_id')
+            if kegiatan_id:
+                Kegiatan.objects.filter(id=kegiatan_id).delete()
+                messages.success(request, "Kegiatan manual berhasil dihapus!")
+            return redirect('home')
+            
+        else:
+            kegiatan_nama = request.POST.get('kegiatan')
+            deskripsi = request.POST.get('deskripsi')
+            tanggal = request.POST.get('tanggal') 
+
+            if kegiatan_nama and tanggal:
+                Kegiatan.objects.create(
+                    kegiatan=kegiatan_nama,
+                    deskripsi=deskripsi,
+                    tanggal=tanggal
+                )
+                messages.success(request, "Kegiatan baru berhasil ditambahkan!")
+            else:
+                messages.error(request, "Gagal menambahkan kegiatan. Data tidak lengkap.")
+            
+            return redirect('home') 
 
     daftar_hutang = Hutang.objects.filter(
         status='Belum Lunas', 
@@ -993,7 +1003,6 @@ def home(request):
     )
     
     daftar_kegiatan = Kegiatan.objects.all()
-
     events_data = {}
 
     for h in daftar_hutang:
@@ -1013,6 +1022,7 @@ def home(request):
         if tgl_str not in events_data:
             events_data[tgl_str] = []
         events_data[tgl_str].append({
+            'id': k.id, 
             'tipe': 'general',
             'judul': k.kegiatan,
             'detail': k.deskripsi or '-'

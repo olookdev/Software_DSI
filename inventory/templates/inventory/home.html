@@ -278,11 +278,44 @@
         if (eventsData[dateKey] && eventsData[dateKey].length > 0) {
             let html = '<div class="list-group">';
             eventsData[dateKey].forEach(ev => {
-                const badgeColor = ev.tipe === 'debt' ? 'bg-danger' : 'bg-primary';
+                // Tentukan warna badge & teks berdasarkan tipe agenda
+                let badgeColor = 'bg-primary';
+                let tipeTeks = 'Kegiatan';
+                let tombolHapusHtml = ''; // Secara default kosong (Hutang & Piutang tidak bisa diubah/hapus)
+
+                if (ev.tipe === 'debt') {
+                    badgeColor = 'bg-danger';
+                    tipeTeks = 'Hutang';
+                } else if (ev.tipe === 'receivable') {
+                    badgeColor = 'bg-success';
+                    tipeTeks = 'Piutang';
+                } else if (ev.tipe === 'general') {
+                    badgeColor = 'bg-primary';
+                    tipeTeks = 'Kegiatan';
+                    
+                    // KONDISI KHUSUS MANUAL: Render tombol hapus kecil memanfaatkan ID kegiatan
+                    tombolHapusHtml = `
+                        <form method="POST" action="" onsubmit="return confirm('Yakin ingin menghapus kegiatan ini?');" class="m-0">
+                            <input type="hidden" name="csrfmiddlewaretoken" value="${document.querySelector('[name=csrfmiddlewaretoken]').value}">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="kegiatan_id" value="${ev.id}">
+                            <button type="submit" class="btn btn-sm btn-link text-danger p-0 border-0" style="font-size: 1.1rem; line-height: 1;">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </form>
+                    `;
+                }
+
                 html += `
-                    <div class="list-group-item border-4 shadow-sm mb-2 rounded p-3">
-                        <h6 class="fw-bold mb-1">${ev.judul}</h6>
-                        <small class="text-muted d-block">${ev.detail}</small>
+                    <div class="list-group-item border-0 shadow-sm mb-2 rounded p-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <span class="badge ${badgeColor} mb-2">${tipeTeks}</span>
+                                <h6 class="fw-bold mb-1">${ev.judul}</h6>
+                                <small class="text-muted d-block">${ev.detail}</small>
+                            </div>
+                            <div class="ms-2">${tombolHapusHtml}</div>
+                        </div>
                     </div>
                 `;
             });
