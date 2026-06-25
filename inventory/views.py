@@ -489,8 +489,6 @@ def tambah_arus_stok(request):
         v_keterangan = request.POST.get('keterangan_arus')
         v_suplier_id = request.POST.get('suplier')       
         v_harga = request.POST.get('harga_satuan')        
-        
-        # --- TANGKAP INPUTAN BARU ---
         v_pembayaran = request.POST.get('pembayaran')
         v_tenggat = request.POST.get('tenggat_pembayaran')
 
@@ -526,7 +524,6 @@ def tambah_arus_stok(request):
                 
                 barang.save()
 
-                # Simpan ke Database (Perhitungan Sisa Pembayaran ditangani otomatis oleh model.py saat .save())
                 ArusStok.objects.create(
                     barang=barang,
                     jenis_arus=v_jenis_arus,
@@ -560,7 +557,6 @@ def edit_arus_stok(request, pk):
             v_suplier_id = request.POST.get('suplier')
             v_harga = request.POST.get('harga_satuan')
             
-            # --- TANGKAP INPUTAN EDIT BARU ---
             v_pembayaran = request.POST.get('pembayaran')
             v_tenggat = request.POST.get('tenggat_pembayaran')
 
@@ -576,7 +572,6 @@ def edit_arus_stok(request, pk):
                 else:
                     arus.suplier = None
 
-            # .save() di bawah ini akan otomatis mengalkulasi sisa_pembayaran terbaru
             arus.save()
             messages.success(request, f"Berhasil memperbarui data riwayat arus stok.")
 
@@ -641,21 +636,46 @@ def titik_uang(nilai_string):
 
 def list_order(request):
     query = request.GET.get('search')
-    
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    status_filter = request.GET.get('status', 'Semua')
+    hari_ini = timezone.now().date()
+    semua_order = OrderUtama.objects.all()
+
+    if start_date and end_date:
+        semua_order = semua_order.filter(tgl_order__date__range=[start_date, end_date])
+    else:
+        semua_order = semua_order.filter(tgl_order__date=hari_ini)
+        start_date = hari_ini.strftime('%Y-%m-%d')
+        end_date = hari_ini.strftime('%Y-%m-%d')
     if query:
-        semua_order = OrderUtama.objects.filter(
+        semua_order = semua_order.filter(
             Q(no_order__icontains=query) | 
             Q(nama_order__icontains=query) |
             Q(customer__nama_customer__icontains=query)
-        ).order_by('-id')
-    else:
-        semua_order = OrderUtama.objects.all().order_by('-id')
+        )
+
+    total_orderan = semua_order.count()
+    total_status_order = semua_order.filter(status__iexact='order').count()
+    total_status_proses = semua_order.filter(status__iexact='proses').count()
+    total_status_selesai = semua_order.filter(status__iexact='selesai').count()
+ 
+    if status_filter and status_filter != 'Semua':
+        semua_order = semua_order.filter(status__iexact=status_filter)
+
+    semua_order = semua_order.order_by('-id')
 
     return render(request, 'inventory/list_order.html', {
         'orders': semua_order,
-        'query': query
+        'query': query,
+        'start_date': str(start_date),
+        'end_date': str(end_date),
+        'status_aktif': status_filter,
+        'card_total': total_orderan,
+        'card_order': total_status_order,
+        'card_proses': total_status_proses,
+        'card_selesai': total_status_selesai,
     })
-
 
 def tambah_order(request):
     if request.method == "POST":
@@ -917,7 +937,7 @@ def hutang(request):
                 messages.error(request, f"Nominal pembayaran melebihi sisa utang (Maksimal Rp {sisa_formatted})")
             else:
                 arus_stok_obj.pembayaran += nominal_cicil
-                arus_stok_obj.save() #
+                arus_stok_obj.save() 
                 
                 cicil_formatted = f"{nominal_cicil:,.0f}".replace(',', '.')
                 messages.success(request, f"Berhasil membayar utang sebesar Rp {cicil_formatted}")

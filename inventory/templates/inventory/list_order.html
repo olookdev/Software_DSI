@@ -4,23 +4,33 @@
 
 <div class="action-bar">
     <div class="controls-group">
-        <input type="date" class="form-control custom-input-date" name="start_date">
-        <input type="date" class="form-control custom-input-date" name="end_date">
-        <select class="form-select custom-select" style="width: 200px;">
-            <option selected>Status</option>
-            <option value="order">Order</option>
-            <option value="proses">Proses</option>
-            <option value="selesai">Selesai</option>
-        </select>
-        {% include 'components/search_bar.html' with placeholder_text="Cari Nama Customer atau Kode Order........." %}
+        <div id="search-input-field" style="max-width: 350px; flex-grow: 1;">
+            {% include 'components/search_bar.html' with placeholder_text="Cari Nama Customer atau Kode Order........." %}
+        </div>
+
+        <form method="GET" action="" id="form-filter" class="d-flex gap-2 align-items-center flex-wrap m-0">
+            <input type="hidden" name="search" id="hidden-search-input" value="{{ query|default:'' }}">
+            <input type="date" class="form-control custom-input-date" name="start_date" value="{{ start_date }}" 
+                onchange="document.getElementById('form-filter').submit()">
+            <input type="date" class="form-control custom-input-date" name="end_date" value="{{ end_date }}" 
+                onchange="document.getElementById('form-filter').submit()">
+            <select class="form-select custom-select" name="status" style="width: 200px;" 
+                    onchange="document.getElementById('form-filter').submit()">
+                <option value="Semua" {% if status_aktif == 'Semua' %}selected{% endif %}>Semua Status</option>
+                <option value="order" {% if status_aktif == 'order' %}selected{% endif %}>Order</option>
+                <option value="proses" {% if status_aktif == 'proses' %}selected{% endif %}>Proses</option>
+                <option value="selesai" {% if status_aktif == 'selesai' %}selected{% endif %}>Selesai</option>
+            </select>
+        </form>
+    
         {% include 'components/btn_plus.html' with modal_id="tambahOrderModal" %}
     </div>
 
     <div class="controls-group" style="margin-top: 0px;">
-        {%include 'components/info_cards.html' with label="Total Order" value="Suplier 1 " %}
-        {%include 'components/info_cards.html' with label="Status Order" value="20" %}
-        {%include 'components/info_cards.html' with label="Status Proses" value="10" %}
-        {%include 'components/info_cards.html' with label="Status Selesai" value="40" %}
+        {% include 'components/info_cards.html' with label="Total Order" value=card_total %}
+        {% include 'components/info_cards.html' with label="Status Order" value=card_order %}
+        {% include 'components/info_cards.html' with label="Status Proses" value=card_proses %}
+        {% include 'components/info_cards.html' with label="Status Selesai" value=card_selesai %}
     </div>
 
     <div class="table-container-shadow">
@@ -162,9 +172,9 @@
                                             <label class="fw-bold text-nowrap mb-0">Qty</label>
                                             <input type="number" id="input_qty" class="form-control form-control-sm border-dark text-center" value="1" min="1">
                                         </div>
-                                        <input type="number" id="input_p" class="form-control form-control-sm border-dark text-center" style="width: 70px;" placeholder="P">
+                                        <input type="number" id="input_p" step="any" class="form-control form-control-sm border-dark text-center" style="width: 70px;" placeholder="P">
                                         <span class="fw-bold">X</span>
-                                        <input type="number" id="input_l" class="form-control form-control-sm border-dark text-center" style="width: 70px;" placeholder="L">
+                                        <input type="number" id="input_l" step="any" class="form-control form-control-sm border-dark text-center" style="width: 70px;" placeholder="L">
                                         <span class="fw-bold">=</span>
                                         <input type="text" id="input_luas" class="form-control form-control-sm border-dark bg-light text-center" style="width: 90px;" readonly value="1">
                                     </div>
@@ -444,6 +454,34 @@
 </style>
 
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+        // Find the actual input element inside your component search_bar
+        const realSearchInput = document.querySelector("#search-input-field input[type='text']");
+        const hiddenSearch = document.getElementById("hidden-search-input");
+        const filterForm = document.getElementById("form-filter");
+
+        if (realSearchInput) {
+            // Pasang kembali text yang dicari sebelumnya ke dalam input bar agar tidak hilang setelah reload
+            realSearchInput.value = hiddenSearch.value;
+
+            // Fitur Live Search: Otomatis submit form saat user selesai mengetik (tekan Enter)
+            realSearchInput.addEventListener("keypress", function(e) {
+                if (e.key === "Enter") {
+                    e.preventDefault(); // Mencegah submit default komponen
+                    hiddenSearch.value = realSearchInput.value; // Pindahkan teks ke form utama
+                    filterForm.submit(); // Jalankan pencarian global
+                }
+            });
+
+            // Opsional: Otomatis mencari jika user menghapus seluruh teks pencarian (klik silang/backspace habis)
+            realSearchInput.addEventListener("input", function() {
+                if (realSearchInput.value === "") {
+                    hiddenSearch.value = "";
+                    filterForm.submit();
+                }
+            });
+        }
+    });
 document.addEventListener("DOMContentLoaded", function () {
     // 1. Inisialisasi Tanggal Default
     const tglInput = document.getElementById('tgl_order_input');
