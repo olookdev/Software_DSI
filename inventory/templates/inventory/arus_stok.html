@@ -25,36 +25,29 @@
     </div>
 </div>
 
-{% if messages %}
-    <div class="container mt-3">
-        {% for message in messages %}
-            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        {% endfor %}
-    </div>
-{% endif %}
-
 <div class="tab-content" id="myTabContent">    
     <div class="tab-pane fade show active" id="arus-stok" role="tabpanel">
         <div class="action-bar">
-            <div class="controls-group">
-                {% include 'components/info_cards.html' with label="Total Barang Masuk" value="100" %}
-                {% include 'components/info_cards.html' with label="Total Barang Keluar" value="20" %}
-                
-                <input type="date" class="form-control custom-input-date" name="start_date">
-                <input type="date" class="form-control custom-input-date" name="end_date">
-                <select class="form-select custom-select" style="width: 200px;">
-                    <option selected>Status</option>
-                    <option value="masuk">Pembelian</option>
-                    <option value="keluar">Pemakaian</option>
-                </select>
+            <form method="GET" action="" id="form-arus-filter">
+                <div class="controls-group">
+                    {% include 'components/info_cards.html' with label="Total Barang Masuk" value=card_masuk %}                
+                    {% include 'components/info_cards.html' with label="Total Barang Keluar" value=card_keluar %}                
+                    <input type="date" class="form-control custom-input-date" name="start_date" value="{{ start_date }}"
+                        onchange="document.getElementById('form-arus-filter').submit()">
+                    <input type="date" class="form-control custom-input-date" name="end_date" value="{{ end_date }}"
+                    onchange="document.getElementById('form-arus-filter').submit()">                
+                    <select class="form-select custom-select" name="status" style="min-width: 170px;"
+                            onchange="document.getElementById('form-arus-filter').submit()">
+                        <option value="Semua" {% if status_aktif == 'Semua' %}selected{% endif %}>Semua Status</option>
+                        <option value="masuk" {% if status_aktif == 'masuk' %}selected{% endif %}>Pembelian</option>
+                        <option value="keluar" {% if status_aktif == 'keluar' %}selected{% endif %}>Pemakaian</option>
+                    </select>
 
-                {% include 'components/search_bar.html' with placeholder_text="Cari Nama atau Kode Barang..." %}
-                {% include 'components/btn_plus.html' with modal_id="tambahArusModal" %}
-            </div>
-            
+                    {% include 'components/search_bar.html' with placeholder_text="Cari Nama atau Kode Barang..." %}
+                    {% include 'components/btn_plus.html' with modal_id="tambahArusModal" %}
+                </div>
+            </form>
+                        
             <div class="table-container-shadow">
                 <table class="custom-table">
                     <thead>
@@ -84,7 +77,7 @@
                             
                             data-pembayaran="{{ a.pembayaran|stringformat:'.2f'|default:0 }}"
                             data-sisa="{{ a.sisa_pembayaran|stringformat:'.2f'|default:0 }}"
-                            data-tenggat="{% if a.tenggat_pembayaran %}{{ a.tenggat_pembayaran|date:'Y-m-d' }}{% else %}-{% endif %}">>
+                            data-tenggat="{% if a.tenggat_pembayaran %}{{ a.tenggat_pembayaran|date:'Y-m-d' }}{% else %}-{% endif %}">
                             <td>{{ forloop.counter }}</td>
                             <td>{{ a.tanggal|date:"l, d F Y" }}</td>
                             <td>
@@ -341,6 +334,33 @@
 </style>
 
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+        const realSearchInput = document.querySelector("#arus-search-field input[type='text']");
+        const hiddenSearch = document.getElementById("hidden-arus-search");
+        const filterForm = document.getElementById("form-arus-filter");
+
+        if (realSearchInput) {
+            // Pasang teks pencarian terakhir agar tidak hilang setelah reload halaman
+            realSearchInput.value = hiddenSearch.value;
+
+            // Trigger submit otomatis saat menekan tombol ENTER pada search bar
+            realSearchInput.addEventListener("keypress", function(e) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    hiddenSearch.value = realSearchInput.value;
+                    filterForm.submit();
+                }
+            });
+
+            // Otomatis refresh data kembali semula jika user menghapus bersih kata kunci pencarian
+            realSearchInput.addEventListener("input", function() {
+                if (realSearchInput.value === "") {
+                    hiddenSearch.value = "";
+                    filterForm.submit();
+                }
+            });
+        }
+    });
 // =========================================================================
 // FUNGSI PEMBANTU: FORMAT ANGKA MENJADI RIBUAN INDONESIA (100.000)
 // =========================================================================

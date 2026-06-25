@@ -393,6 +393,33 @@
 </style>
 
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+        const realSearchInput = document.querySelector("#stok-search-field input[type='text']");
+        const hiddenSearch = document.getElementById("hidden-stok-search");
+        const filterForm = document.getElementById("form-stok-filter");
+
+        if (realSearchInput) {
+            // Kembalikan teks pencarian terakhir ke dalam kolom bar agar tidak hilang setelah reload
+            realSearchInput.value = hiddenSearch.value;
+
+            // Trigger submit saat user menekan tombol ENTER
+            realSearchInput.addEventListener("keypress", function(e) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    hiddenSearch.value = realSearchInput.value;
+                    filterForm.submit();
+                }
+            });
+
+            // Otomatis reset/refresh data saat teks pencarian dihapus bersih oleh user
+            realSearchInput.addEventListener("input", function() {
+                if (realSearchInput.value === "") {
+                    hiddenSearch.value = "";
+                    filterForm.submit();
+                }
+            });
+        }
+    });
 // =========================================================================
 // 1. MODAL EDIT DATA BARANG (LIST STOK)
 // =========================================================================

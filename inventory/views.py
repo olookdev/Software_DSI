@@ -37,6 +37,7 @@ def logout_view(request):
     return redirect('login')
 
 # ========================Stok========================
+@login_required(login_url='login')
 def list_stok(request):
     if request.method == "POST":
         v_nama = request.POST.get('nama_barang')
@@ -76,15 +77,20 @@ def list_stok(request):
         messages.success(request, f"Barang {v_nama} berhasil ditambahkan dengan kode {v_kode}!")
         return redirect('list_stok')
     
+    # =========================================================================
+    # LOGIKA GET (TAB & FILTER LIVE SEARCH)
+    # =========================================================================
     tab_aktif = request.GET.get('tab', 'list')
     context = {
         'tab_aktif': tab_aktif,
         'semua_jenis': JenisBarang.objects.all(),
     }
+    
     if tab_aktif == 'list':
         query = request.GET.get('search')
         
         if query:
+            # Menggunakan queryset hasil filter jika user melakukan live search
             stok = List_Stok.objects.filter(
                 Q(nama_barang__icontains=query) | 
                 Q(kode_barang__icontains=query) |
@@ -92,6 +98,8 @@ def list_stok(request):
             ).select_related('jenis').order_by('id')
         else:
             stok = List_Stok.objects.all().select_related('jenis').order_by('id')
+            
+        # Pembersihan karakter string untuk javascript data table aman
         for s in stok:
             if s.nama_barang:
                 s.nama_barang = s.nama_barang.replace('\r', '').replace('\n', ' ').replace("'", "\\'")
@@ -99,16 +107,27 @@ def list_stok(request):
                 s.keterangan = s.keterangan.replace('\r', '').replace('\n', ' ').replace("'", "\\'")
             if s.ukuran:
                 s.ukuran = s.ukuran.replace('\r', '').replace('\n', ' ').replace("'", "\\'")
+        
+        # --- PERBAIKAN COUNTER INFO CARDS ---
+        # Hitung akumulasi qty dari data queryset 'stok' yang aktif (jika di-search, angka ini ikut menyusut)
         total_qty_data = stok.aggregate(Sum('qty'))['qty__sum']
-        total_stok = float(total_qty_data) if total_qty_data else 0
-        barang_terlaris = stok.order_by('-qty').first() 
-        pemakaian_info = barang_terlaris.nama_barang if barang_terlaris else "-"
+        total_stok = int(total_qty_data) if total_qty_data else 0 # Ubah ke int agar tidak desimal di info card
+        
+        # Ambil data barang dengan qty terbanyak berdasarkan filter yang sedang aktif
+        barang_terbanyak = stok.order_by('-qty').first() 
+        if barang_terbanyak and barang_terbanyak.qty > 0:
+            # Contoh hasil: "Banner Flexi (150 Pcs)"
+            pemakaian_info = f"{barang_terbanyak.nama_barang} ({barang_terbanyak.qty} {barang_terbanyak.satuan or ''})"
+        else:
+            pemakaian_info = "-"
+            
         context.update({
             'stok_barang': stok,
             'query': query,
             'total_seluruh_stok': total_stok,
             'pemakaian_terbanyak': pemakaian_info,
         })
+        
     elif tab_aktif == 'arus':
         arus_stok_list = ArusStok.objects.all().select_related('barang').order_by('-tanggal')
         semua_barang = List_Stok.objects.all().order_by('nama_barang')
@@ -122,10 +141,12 @@ def list_stok(request):
             'semua_barang': semua_barang,
             'semua_suplier': semua_suplier,
         })
+        
     elif tab_aktif == 'opname':
         context.update({
             'data_opname_list': [], 
         })
+        
     return render(request, 'inventory/list_stok.html', context)
 
 def edit_stok(request):
@@ -469,7 +490,38 @@ def hapus_harga_jual(request, id):
 
 # ======================== ARUS STOK ========================
 def log_arus_stok(request):
-    arus_stok_list = ArusStok.objects.all().select_related('barang', 'suplier').order_by('-tanggal')
+    query = request.GET.get('search', '')
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    status_filter = request.GET.get('status', 'Semua')
+    hari_ini = timezone.now().date()
+    arus_stok_list = ArusStok.objects.all().select_related('barang', 'suplier')
+
+    if start_date and end_date:
+        arus_stok_list = arus_stok_list.filter(tanggal__date__range=[start_date, end_date])
+    else:
+        arus_stok_list = arus_stok_list.filter(tanggal__date=hari_ini)
+        start_date = hari_ini.strftime('%Y-%m-%d')
+        end_date = hari_ini.strftime('%Y-%m-%d')
+
+    if query:
+        arus_stok_list = arus_stok_list.filter(
+            Q(barang__nama_barang__icontains=query) |
+            Q(barang__kode_barang__icontains=query)
+        )
+
+    total_masuk_data = arus_stok_list.filter(jenis_arus__iexact='Pembelian').aggregate(Sum('qty_arus'))['qty_arus__sum']
+    total_masuk = int(total_masuk_data) if total_masuk_data else 0
+    total_keluar_data = arus_stok_list.filter(jenis_arus__iexact='Pemakaian').aggregate(Sum('qty_arus'))['qty_arus__sum']
+    total_keluar = int(total_keluar_data) if total_keluar_data else 0
+
+    if status_filter and status_filter != 'Semua':
+        if status_filter == 'masuk':
+            arus_stok_list = arus_stok_list.filter(jenis_arus__iexact='Pembelian')
+        elif status_filter == 'keluar':
+            arus_stok_list = arus_stok_list.filter(jenis_arus__iexact='Pemakaian')
+
+    arus_stok_list = arus_stok_list.order_by('-tanggal')
     semua_barang = List_Stok.objects.all().order_by('nama_barang')
     semua_suplier = Suplier.objects.all().order_by('nama_suplier')
 
@@ -477,6 +529,12 @@ def log_arus_stok(request):
         'arus_stok_list': arus_stok_list,
         'semua_barang': semua_barang,
         'semua_suplier': semua_suplier,
+        'query': query,
+        'start_date': str(start_date),
+        'end_date': str(end_date),
+        'status_aktif': status_filter,
+        'card_masuk': total_masuk,
+        'card_keluar': total_keluar,
     }
     return render(request, 'inventory/arus_stok.html', context)
 
