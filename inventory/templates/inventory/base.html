@@ -175,7 +175,7 @@
         <button class="btn-toggle-menu" onclick="toggleSidebar()">
             <i class="bi bi-list"></i>
         </button>
-        <h2 class="m-0 fw-bold">{% block page_title %}List Order{% endblock %}</h2>
+        <h2 class="m-0 fw-bold">{% block page_title %}{% endblock page_title %}</h2>
     </div>
 
     <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
@@ -211,7 +211,8 @@
             <a href="{% url 'piutang' %}" class="sidebar-link {% if request.resolver_match.url_name == 'piutang' %}active{% endif %}">
                 Piutang
             </a>
-            <a href="{% url 'transaksi' %}" class="sidebar-link">Transaksi</a>
+            <a href="{% url 'transaksi' %}" class="sidebar-link {% if request.resolver_match.url_name == 'transaksi' %}active{% endif %}">Transaksi</a>
+            <a href="{% url 'pengiriman' %}" class="sidebar-link {% if request.resolver_match.url_name == 'pengiriman' %}active{% endif %}">Pengiriman</a>
             <div style="margin-top: 50px;">
                 <hr>
                 <a href="#" class="sidebar-link text-muted">Export To Excel</a>
