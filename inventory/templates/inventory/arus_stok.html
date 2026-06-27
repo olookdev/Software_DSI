@@ -10,14 +10,14 @@
            id="data-stok-tab">
            Data Stok
         </a>    
-        
+
         <a href="{% url 'log_arus_stok' %}" 
            class="nav-link {% if request.resolver_match.url_name == 'log_arus_stok' %}active{% endif %}" 
            id="arus-stok-tab">
            Arus Stok
         </a>
         
-        <a href="#" 
+        <a href="{% url 'stok_opname' %}" 
            class="nav-link {% if request.resolver_match.url_name == 'stok_opname' %}active{% endif %}" 
            id="stok-opname-tab">
            Stok Opname
@@ -47,7 +47,7 @@
                     {% include 'components/btn_plus.html' with modal_id="tambahArusModal" %}
                 </div>
             </form>
-                        
+
             <div class="table-container-shadow">
                 <table class="custom-table">
                     <thead>

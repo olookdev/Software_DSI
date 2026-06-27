@@ -17,7 +17,7 @@
            Arus Stok
         </a>
         
-        <a href="#" 
+        <a href="{% url 'stok_opname' %}" 
            class="nav-link {% if request.resolver_match.url_name == 'stok_opname' %}active{% endif %}" 
            id="stok-opname-tab">
            Stok Opname

@@ -17,7 +17,7 @@
            Arus Stok
         </a>
         
-        <a href="#" 
+        <a href="{% url 'stok_opname' %}" 
            class="nav-link {% if request.resolver_match.url_name == 'stok_opname' %}active{% endif %}" 
            id="stok-opname-tab">
            Stok Opname
@@ -26,75 +26,86 @@
 </div>
 
 <div class="tab-content" id="myTabContent">
-    <div class="tab-pane fade show active" id="data-stok" role="tabpanel">
-        <div class="tab-pane fade" id="stok-opname" role="tabpanel">
-            <div class="action-bar">
+    <div class="tab-pane fade show active" id="stok-opname" role="tabpanel">
+        <div class="action-bar">
+            
+            <form method="GET" action="" id="form-opname-filter">
+                <input type="hidden" name="search" id="hidden-opname-search" value="{{ query|default:'' }}">
+
                 <div class="controls-group">
-                    <input type="date" class="form-control custom-input-date" name="start_date">
-                    <input type="date" class="form-control custom-input-date" name="end_date">
-                    <select class="form-select custom-select" style="width: 200px;">
-                        <option selected>Jenis</option>
-                        <option value="lebih">Lebih</option>
-                        <option value="Kurang">kurang</option>
+                    <input type="date" class="form-control custom-input-date" name="start_date" value="{{ start_date }}"
+                        onchange="document.getElementById('form-opname-filter').submit()">
+                    
+                    <input type="date" class="form-control custom-input-date" name="end_date" value="{{ end_date }}"
+                        onchange="document.getElementById('form-opname-filter').submit()">
+                    
+                    <select class="form-select custom-select" name="jenis" style="width: 200px;"
+                            onchange="document.getElementById('form-opname-filter').submit()">
+                        <option value="Semua" {% if jenis_aktif == 'Semua' %}selected{% endif %}>Semua Jenis</option>
+                        <option value="Lebih" {% if jenis_aktif == 'Lebih' %}selected{% endif %}>Lebih</option>
+                        <option value="Kurang" {% if jenis_aktif == 'Kurang' %}selected{% endif %}>Kurang</option>
+                        <option value="Cocok" {% if jenis_aktif == 'Cocok' %}selected{% endif %}>Cocok</option>
                     </select>
-                    {% include 'components/search_bar.html' with placeholder_text="Cari Kode atau Nama Barang..." %}
+
+                    <div id="opname-search-field" style="display: inline-block;">
+                        {% include 'components/search_bar.html' with placeholder_text="Cari Kode atau Nama Barang..." %}
+                    </div>
                     {% include 'components/btn_plus.html' with modal_id="tambahStokOpname" %}
                 </div>
-                <div class="table-container-shadow">
-                    <table class="custom-table">
-                        <thead>
-                            <tr>
-                                <th>No</th>
-                                <th>Hari/Tanggal</th>
-                                <th>Kode Barang</th>
-                                <th>Nama Barang</th>
-                                <th>Jenis</th>
-                                <th class="text-center" >Qty Di Sistem</th>
-                                <th class="text-center">Qty Di Gudang</th>
-                                <th class="text-center">Selisih</th>
-                                <th class="text-center">Stok Akhir</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>1</td>
-                                <td>Senin, 20-04-2025</td>
-                                <td>S001</td>
-                                <td>stiker</td>
-                                <td><span class="badge bg-success">Lebih</span></td>
-                                <td class="text-center">80</td>
-                                <td class="text-center">100</td>
-                                <td class="text-center">20</td>
-                                <td class="text-center">100</td>
-                            </tr>
-                            <tr>
-                                <td>1</td>
-                                <td>Senin, 20-04-2025</td>
-                                <td>S001</td>
-                                <td>stiker</td>
-                                <td><span class="badge bg-danger">kurang</span></td>
-                                <td class="text-center">100</td>
-                                <td class="text-center">80</td>
-                                <td class="text-center">20</td>
-                                <td class="text-center">80</td>
-                            </tr>
-                            <tr>
-                                <td>1</td>
-                                <td>Senin, 20-04-2025</td>
-                                <td>S001</td>
-                                <td>stiker</td>
-                                <td><span class="badge bg-info">Cocok</span></td>
-                                <td class="text-center">100</td>
-                                <td class="text-center">100</td>
-                                <td class="text-center">0</td>
-                                <td class="text-center">100</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>  
-        </div> 
-    </div>  
+            </form>
+            
+            <div class="table-container-shadow">
+    <table class="custom-table">
+        <thead>
+            <tr>
+                <th>No</th>
+                <th>Hari/Tanggal</th>
+                <th>Kode Barang</th>
+                <th>Nama Barang</th>
+                <th>Jenis</th>
+                <th class="text-center">Qty Di Sistem</th>
+                <th class="text-center">Qty Di Gudang</th>
+                <th class="text-center">Selisih</th>
+                <th class="text-center">Stok Akhir</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for o in opname_list %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ o.tanggal|date:"l, d-m-Y" }}</td>
+                <td>{{ o.barang.kode_barang|default:"-" }}</td>
+                <td>{{ o.barang.nama_barang|default:"Barang Terhapus" }}</td>
+                <td>
+                    {% if o.jenis == 'Lebih' %}
+                        <span class="badge bg-success">Lebih</span>
+                    {% elif o.jenis == 'Kurang' %}
+                        <span class="badge bg-danger">Kurang</span>
+                    {% else %}
+                        <span class="badge bg-info">Cocok</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">{{ o.qty_sistem }}</td>
+                <td class="text-center">{{ o.qty_gudang }}</td>
+                <td class="text-center">{{ o.selisih }}</td>
+                <td class="text-center fw-bold">{{ o.stok_akhir }}</td>
+                <td class="text-center">
+                    <a href="javascript:void(0)" onclick="hapusStokOpname('{{ o.id }}', '{{ o.barang.nama_barang|escapejs }}', '{{ o.qty_sistem }}', '{{ o.qty_gudang }}')" class="text-danger">
+                        <i class="bi bi-trash-fill"></i>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9" class="text-center py-4 text-muted">Belum ada riwayat stok opname untuk filter tanggal ini.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+        </div>  
+    </div> 
 </div>
 
 <div class="modal fade" id="tambahStokOpname" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
@@ -107,61 +118,77 @@
                 <h2 class="text-center fw-bold mb-4">Tambah Stok Opname</h2>                        
                 <form action="" method="POST">
                     {% csrf_token %}
+                    
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Hari/tanggal</label>
                         <div class="col-sm-8">
-                            <input type="date" class="form-control border-dark">
+                            <input type="date" id="opname_tanggal" name="tanggal" class="form-control border-dark" required>
                         </div>
                     </div>
+                    
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Nama Barang</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark">
+                            <input type="text" id="opname_nama_barang" list="list_barang_opname" class="form-control border-dark" placeholder="Ketik nama barang..." autocomplete="off" required>
+                            <input type="hidden" id="opname_barang_id" name="barang">
+                            
+                            <datalist id="list_barang_opname">
+                                {% for b in semua_barang %}
+                                    <option data-id="{{ b.id }}" data-kode="{{ b.kode_barang }}" data-qty="{{ b.qty }}" value="{{ b.nama_barang }}"></option>
+                                {% endfor %}
+                            </datalist>
                         </div>
                     </div>
+                    
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Kode Barang</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
+                            <input type="text" id="opname_kode_barang" class="form-control border-dark" readonly>
                         </div>
                     </div>
+                    
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Jenis </label>
                         <div class="col-sm-8">
-                            <select class="form-select border-dark" id="selectJenisArus" name="jenis_arus">
-                                <option value="cocok" selected>Cocok</option>
-                                <option value="lebih" selected>Lebih</option>
-                                <option value="kurang">Kurang</option>
+                            <select class="form-select border-dark" id="opname_jenis" name="jenis" required>
+                                <option value="Cocok">Cocok</option>
+                                <option value="Lebih">Lebih</option>
+                                <option value="Kurang">Kurang</option>
                             </select>
                         </div>
                     </div>
+                    
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Qty Di Sistem</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
+                            <input type="number" id="opname_qty_sistem" name="qty_sistem" class="form-control border-dark" readonly value="0">
                         </div>
                     </div>
+                    
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Qty Di Gudang</label>
                         <div class="col-sm-8">
-                            <input type="number" class="form-control border-dark">
+                            <input type="number" id="opname_qty_gudang" name="qty_gudang" class="form-control border-dark" min="0" value="0" required>
                         </div>
                     </div>
+                    
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Selisih</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark" readonly>
+                            <input type="number" id="opname_selisih" name="selisih" class="form-control border-dark" readonly value="0">
                         </div>
                     </div>
+                    
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Stok Akhir</label>
                         <div class="col-sm-8">
-                            <input type="number" class="form-control border-dark" readonly>
+                            <input type="number" id="opname_stok_akhir" name="stok_akhir" class="form-control border-dark" readonly value="0">
                         </div>
                     </div>
+                    
                     <div class="d-flex justify-content-center gap-3">
                         <button type="submit" class="btn-tambah-modal">Tambah</button>
-                        <button type="reset" class="btn-hapus-modal">Reset</button>
+                        <button type="reset" id="btn_reset_opname" class="btn-hapus-modal">Reset</button>
                     </div>
                 </form>
             </div>
@@ -331,238 +358,105 @@ document.querySelectorAll('.nav-link').forEach(button => {
         }
     });
 });
+document.addEventListener("DOMContentLoaded", function() {
+    const inputTanggal = document.getElementById("opname_tanggal");
+    const inputNama = document.getElementById("opname_nama_barang");
+    const inputHiddenBarangId = document.getElementById("opname_barang_id");
+    const inputKode = document.getElementById("opname_kode_barang");
+    const inputQtySistem = document.getElementById("opname_qty_sistem");
+    const inputQtyGudang = document.getElementById("opname_qty_gudang");
+    const selectJenis = document.getElementById("opname_jenis");
+    const inputSelisih = document.getElementById("opname_selisih");
+    const inputStokAkhir = document.getElementById("opname_stok_akhir");
+    const btnReset = document.getElementById("btn_reset_opname");
 
-// =========================================================================
-// 2. KONTEN DINAMIS MODAL TAMBAH ARUS STOK
-// =========================================================================
-const selectJenisArus = document.getElementById('selectJenisArus');
-const dynamicFields = document.getElementById('dynamicFormFields');
-
-function updateFormFields() {
-    const jenis = selectJenisArus.value;
-    let htmlContent = '';
-
-    // Form dasar menggunakan list="data-barang-list" yang merujuk ke HTML master di atas
-    const baseFields = `
-        <div class="mb-3 row">
-            <label class="col-sm-4 col-form-label fw-bold">Pilih Barang</label>
-            <div class="col-sm-8">
-                <input type="text" class="form-control border-dark" id="arus-pilih-barang" list="data-barang-list" placeholder="Ketik nama barang..." autocomplete="off" required>
-                <input type="hidden" name="barang" id="arus-barang-id-hidden">
-            </div>
-        </div>
-        <div class="mb-3 row">
-            <label class="col-sm-4 col-form-label fw-bold">Kode Barang</label>
-            <div class="col-sm-8">
-                <input type="text" class="form-control border-dark bg-light" id="arus-kode-barang" name="kode_Barang" readonly placeholder="Otomatis terisi">
-            </div>
-        </div>
-        <div class="mb-3 row">
-            <label class="col-sm-4 col-form-label fw-bold">Keterangan Arus</label>
-            <div class="col-sm-8">
-                <input type="text" class="form-control border-dark" name="keterangan_arus" placeholder="Opsional (misal: Keperluan cetak)">
-            </div>
-        </div>
-        <div class="mb-3 row">
-            <label class="col-sm-4 col-form-label fw-bold">Kuantitas (QTY)</label>
-            <div class="col-sm-8">
-                <input type="number" class="form-control border-dark" name="qty_arus" id="arus-qty" min="1" placeholder="0" required>
-            </div>
-        </div>
-    `;
-
-    if (jenis === 'Pemakaian') {
-        htmlContent = baseFields;
-    } else if (jenis === 'Pembelian') {
-        htmlContent = baseFields + `
-            <div class="mb-3 row">
-                <label class="col-sm-4 col-form-label fw-bold">Supplier</label>
-                <div class="col-sm-8">
-                    <input type="text" class="form-control border-dark" id="arus-pilih-suplier" list="data-suplier-list" placeholder="Ketik nama supplier..." autocomplete="off" required>
-                    <input type="hidden" name="suplier" id="arus-suplier-id-hidden">
-                </div>
-            </div>
-            <div class="mb-3 row">
-                <label class="col-sm-4 col-form-label fw-bold">Harga Satuan (@)</label>
-                <div class="col-sm-8">
-                    <input type="number" class="form-control border-dark" name="harga_satuan" id="arus-harga" placeholder="0" required>
-                </div>
-            </div>
-            <div class="mb-3 row">
-                <label class="col-sm-4 col-form-label fw-bold">Total Biaya</label>
-                <div class="col-sm-8">
-                    <input type="number" class="form-control border-dark bg-light" id="arus-total" readonly placeholder="Otomatis terhitung">
-                </div>
-            </div>
-        `;
+    // 1. Set Default Hari Ini pada Input Tanggal
+    if (inputTanggal) {
+        const hariIni = new Date().toISOString().split('T')[0];
+        inputTanggal.value = hariIni;
     }
-    
-    dynamicFields.innerHTML = htmlContent;
-    initArusFormEvents(); // Jalankan auto kalkulasi & deteksi ID data
-}
 
-// =========================================================================
-// 3. LOGIKA AUTO-COMPLETION KODE & KALKULASI TOTAL BIAYA (ARUS STOK)
-// =========================================================================
-function initArusFormEvents() {
-    const inputBarang = document.getElementById('arus-pilih-barang');
-    const hiddenBarangId = document.getElementById('arus-barang-id-hidden');
-    const datalistBarang = document.getElementById('data-barang-list');
-    const inputKode = document.getElementById('arus-kode-barang');
-
-    const inputSuplier = document.getElementById('arus-pilih-suplier');
-    const hiddenSuplierId = document.getElementById('arus-suplier-id-hidden');
-    const datalistSuplier = document.getElementById('data-suplier-list');
-
-    const inputQty = document.getElementById('arus-qty');
-    const inputHarga = document.getElementById('arus-harga');
-    const inputTotal = document.getElementById('arus-total');
-
-    // Listener 1: Deteksi saat user memilih/mengetik nama barang dari datalist
-    if (inputBarang && datalistBarang) {
-        inputBarang.addEventListener('input', function() {
-            const options = datalistBarang.querySelectorAll('option');
+    // 2. Event saat user memilih / mengetik nama barang (Suggestion)
+    if (inputNama) {
+        inputNama.addEventListener("input", function() {
+            const val = this.value;
+            const options = document.querySelectorAll("#list_barang_opname option");
             let cocok = false;
-            
-            options.forEach(opt => {
-                if (opt.value === inputBarang.value) {
-                    hiddenBarangId.value = opt.getAttribute('data-id');
-                    inputKode.value = opt.getAttribute('data-kode');
+
+            options.forEach(option => {
+                if (option.value === val) {
+                    // Isi data field otomatis berdasarkan barang yang diklik
+                    inputHiddenBarangId.value = option.getAttribute("data-id");
+                    inputKode.value = option.getAttribute("data-kode");
+                    inputQtySistem.value = parseInt(option.getAttribute("data-qty")) || 0;
                     cocok = true;
                 }
             });
 
             if (!cocok) {
-                hiddenBarangId.value = ""; // Reset jika ketikan ngawur / tidak sesuai opsi
+                // Kosongkan jika teks dihapus atau belum memilih dari list resmi
+                inputHiddenBarangId.value = "";
                 inputKode.value = "";
+                inputQtySistem.value = 0;
             }
+            hitungOpname();
         });
     }
 
-    // Listener 2: Deteksi saat user memilih/mengetik nama supplier dari datalist
-    if (inputSuplier && datalistSuplier) {
-        inputSuplier.addEventListener('input', function() {
-            const options = datalistSuplier.querySelectorAll('option');
-            let cocok = false;
-
-            options.forEach(opt => {
-                if (opt.value === inputSuplier.value) {
-                    hiddenSuplierId.value = opt.getAttribute('data-id');
-                    cocok = true;
-                }
-            });
-
-            if (!cocok) {
-                hiddenSuplierId.value = "";
-            }
-        });
+    // 3. Event saat user mengubah angka di Qty Gudang
+    if (inputQtyGudang) {
+        inputQtyGudang.addEventListener("input", hitungOpname);
     }
 
-    // Fungsi Kalkulator Total Biaya
-    function hitungTotal() {
-        if (inputQty && inputHarga && inputTotal) {
-            const qty = parseFloat(inputQty.value) || 0;
-            const harga = parseFloat(inputHarga.value) || 0;
-            inputTotal.value = qty * harga;
-        }
-    }
+    // 4. Fungsi Utama Perhitungan Otomatis
+    function hitungOpname() {
+        const qtySistem = parseInt(inputQtySistem.value) || 0;
+        const qtyGudang = parseInt(inputQtyGudang.value) || 0;
 
-    if (inputQty) inputQty.addEventListener('input', hitungTotal);
-    if (inputHarga) inputHarga.addEventListener('input', hitungTotal);
-}
+        // Hitung Selisih: Nilai terbesar dikurang nilai terkecil
+        const nilaiTerbesar = Math.max(qtySistem, qtyGudang);
+        const nilaiTerkecil = Math.min(qtySistem, qtyGudang);
+        const hasilSelisih = nilaiTerbesar - nilaiTerkecil;
+        inputSelisih.value = hasilSelisih;
 
-selectJenisArus.addEventListener('change', updateFormFields);
-window.addEventListener('DOMContentLoaded', updateFormFields);
-
-// =========================================================================
-// 4. MODAL EDIT & AKSI (LIST STOK)
-// =========================================================================
-function bukaModalEdit(id, nama, jenisId, satuan, ukuran, keterangan, qty) {
-    const elId = document.getElementById('edit-id-stok');
-    const elNama = document.getElementById('edit-nama-stok');
-    const elJenis = document.getElementById('edit-jenis-stok');
-    const elSatuan = document.getElementById('edit-satuan-stok');
-    const elUkuran = document.getElementById('edit-ukuran-stok');
-    const elKet = document.getElementById('edit-keterangan-stok');
-    const elQty = document.getElementById('edit-qty-stok');
-
-    if(elId) elId.value = id;
-    if(elNama) elNama.value = nama;
-    if(elJenis) elJenis.value = jenisId;
-    if(elSatuan) elSatuan.value = satuan;
-    if(elUkuran) elUkuran.value = ukuran;
-    if(elKet) elKet.value = keterangan;
-    if(elQty) elQty.value = qty;
-
-    var myModal = new bootstrap.Modal(document.getElementById('editStokModal'));
-    myModal.show();
-}
-
-function simpanJenisBaru() {
-    const namaJenis = document.getElementById('input-jenis-baru').value;
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-    if (!namaJenis) {
-        alert("Nama jenis tidak boleh kosong!");
-        return;
-    }
-
-    fetch("{% url 'tambah_jenis' %}", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "X-CSRFToken": csrfToken
-        },
-        body: `nama_jenis=${encodeURIComponent(namaJenis)}`
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            const dropdowns = document.querySelectorAll('.select-jenis-barang');
-            dropdowns.forEach(select => {
-                const option = new Option(data.nama, data.id);
-                select.add(option);
-                select.value = data.id; 
-            });
-            
-            document.getElementById('input-jenis-baru').value = '';
-            alert("Jenis baru berhasil ditambahkan!");
+        // Tentukan Jenis (Lebih, Kurang, atau Cocok)
+        if (qtyGudang > qtySistem) {
+            selectJenis.value = "Lebih";
+        } else if (qtyGudang < qtySistem) {
+            selectJenis.value = "Kurang";
         } else {
-            alert("Error: " + data.message);
+            selectJenis.value = "Cocok";
         }
-    })
-    .catch(error => console.error('Error:', error));
-}
 
-function hapusStok(id, nama) {
-    if (confirm("Apakah Anda yakin ingin menghapus stok barang: " + nama + "?")) {
-        window.location.href = "/stok/hapus/" + id + "/";
+        inputStokAkhir.value = qtyGudang;
     }
-}
 
-function handleBarangInput() {
-    const inputBarang = document.getElementById('arus-pilih-barang');
-    const inputIdHidden = document.getElementById('arus-barang-id-hidden');
-    const inputKodeBarang = document.getElementById('arus-kode-barang');
-    const datalistBarang = document.getElementById('data-barang-list');
-    
-    const val = inputBarang.value;
-    const options = datalistBarang.options;
-    
-    let ketemu = false;
-    for (let i = 0; i < options.length; i++) {
-        if (options[i].value === val) {
-            inputIdHidden.value = options[i].getAttribute('data-id');
-            inputKodeBarang.value = options[i].getAttribute('data-kode');
-            ketemu = true;
-            break;
-        }
+    if (btnReset) {
+        btnReset.addEventListener("click", function() {
+            setTimeout(() => {
+                const hariIni = new Date().toISOString().split('T')[0];
+                inputTanggal.value = hariIni;
+                inputHiddenBarangId.value = "";
+            }, 10);
+        });
     }
-    
-    // Jika user menghapus tulisan atau mengetik nama yang tidak ada di list
-    if (!ketemu) {
-        inputIdHidden.value = '';
-        inputKodeBarang.value = '';
+});
+
+function hapusStokOpname(id, namaBarang, qtySistem, qtyGudang) {
+    if (confirm(`Apakah Anda yakin ingin menghapus riwayat opname untuk "${namaBarang}"?\n\nStok sistem akan dikembalikan dari ${qtyGudang} menjadi ${qtySistem}.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        let urlTemplate = "{% url 'hapus_stok_opname' pk=0 %}";
+        form.action = urlTemplate.replace('0', id);
+        
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = '{{ csrf_token }}';
+        
+        form.appendChild(csrfInput);
+        document.body.appendChild(form);
+        form.submit();
     }
 }
 </script>

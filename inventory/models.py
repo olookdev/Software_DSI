@@ -299,3 +299,26 @@ class Kegiatan(models.Model):
 
     def __str__(self):
         return f"{self.kegiatan} ({self.tanggal})"
+
+class StokOpname(models.Model):
+    JENIS_CHOICES = [
+        ('Lebih', 'Lebih'),
+        ('Kurang', 'Kurang'),
+        ('Cocok', 'Cocok'),
+    ]
+
+    tanggal = models.DateTimeField(default=timezone.now)
+    barang = models.ForeignKey(List_Stok, on_delete=models.SET_NULL, null=True, related_name='stok_opname')
+    jenis = models.CharField(max_length=10, choices=JENIS_CHOICES)
+    qty_sistem = models.IntegerField(help_text="Jumlah stok di komputer saat opname dilakukan")
+    qty_gudang = models.IntegerField(help_text="Jumlah fisik barang yang dihitung nyata di gudang")
+    selisih = models.IntegerField(default=0, help_text="Hasil dari qty_gudang - qty_sistem")
+    stok_akhir = models.IntegerField(help_text="Stok final setelah disesuaikan")
+    keterangan = models.TextField(blank=True, null=True, help_text="Catatan tambahan alasan selisih")
+
+    def __str__(self):
+        nama_barang = self.barang.nama_barang if self.barang else "Barang Dihapus"
+        return f"Opname {nama_barang} ({self.tanggal.strftime('%d-%m-%Y')}) - {self.jenis}"
+
+    class Meta:
+        verbose_name_plural = "Stok Opname"

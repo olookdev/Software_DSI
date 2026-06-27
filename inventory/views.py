@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.db.models import Q, Max, Sum
 from django.http import JsonResponse
-from .models import Suplier, Customer,List_Stok,JenisBarang, HargaStok, HargaJual, HargaJualBahan, ArusStok, OrderUtama, OrderDetail, PiutangPelanggan, CicilanPiutang, Transaksi, Hutang, Kegiatan
+from .models import Suplier, Customer,List_Stok,JenisBarang, HargaStok, HargaJual, HargaJualBahan, ArusStok, OrderUtama, OrderDetail, PiutangPelanggan, CicilanPiutang, Transaksi, Hutang, Kegiatan, StokOpname
 from django.db import transaction
 from django.utils import timezone
 from decimal import Decimal
@@ -1110,3 +1110,106 @@ def home(request):
         'events_json': json.dumps(events_data)
     }
     return render(request, 'inventory/home.html', context)
+
+#=========================stok opname============================
+def stok_opname(request):
+    if request.method == 'POST':
+        barang_id = request.POST.get('barang')
+        tanggal_input = request.POST.get('tanggal')
+        jenis = request.POST.get('jenis')
+        qty_sistem = request.POST.get('qty_sistem')
+        qty_gudang = request.POST.get('qty_gudang')
+        selisih = request.POST.get('selisih')
+        stok_akhir = request.POST.get('stok_akhir')
+        keterangan = request.POST.get('keterangan', '')
+
+        if not barang_id:
+            messages.error(request, "Gagal menyimpan! Barang harus dipilih dari daftar rekomendasi resmi.")
+            return redirect('stok_opname')
+
+        try:
+            with transaction.atomic():
+                barang_obj = List_Stok.objects.get(id=barang_id)
+
+                StokOpname.objects.create(
+                    tanggal=tanggal_input if tanggal_input else timezone.now(),
+                    barang=barang_obj,
+                    jenis=jenis,
+                    qty_sistem=int(qty_sistem) if qty_sistem else 0,
+                    qty_gudang=int(qty_gudang) if qty_gudang else 0,
+                    selisih=int(selisih) if selisih else 0,
+                    stok_akhir=int(stok_akhir) if stok_akhir else 0,
+                    keterangan=keterangan
+                )
+
+                barang_obj.qty = int(stok_akhir)
+                barang_obj.save()
+
+                messages.success(request, f"Stok opname untuk {barang_obj.nama_barang} berhasil disimpan!")
+        
+        except List_Stok.DoesNotExist:
+            messages.error(request, "Data barang tidak ditemukan di sistem.")
+        except Exception as e:
+            messages.error(request, f"Terjadi kegagalan sistem: {str(e)}")
+
+        return redirect('stok_opname')
+
+    query = request.GET.get('search', '')
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    jenis_filter = request.GET.get('jenis', 'Semua') 
+    hari_ini = timezone.now().date()
+    
+    opname_list = StokOpname.objects.all().select_related('barang')
+
+    if start_date and end_date:
+        opname_list = opname_list.filter(tanggal__date__range=[start_date, end_date])
+    else:
+        opname_list = opname_list.filter(tanggal__date=hari_ini)
+        start_date = hari_ini.strftime('%Y-%m-%d')
+        end_date = hari_ini.strftime('%Y-%m-%d')
+
+    if query:
+        opname_list = opname_list.filter(
+            Q(barang__nama_barang__icontains=query) |
+            Q(barang__kode_barang__icontains=query)
+        )
+
+    if jenis_filter and jenis_filter != 'Semua':
+        opname_list = opname_list.filter(jenis=jenis_filter)
+
+    opname_list = opname_list.order_by('-tanggal')
+    semua_barang = List_Stok.objects.all().order_by('nama_barang')
+
+    context = {
+        'opname_list': opname_list,
+        'semua_barang': semua_barang,
+        'query': query,
+        'start_date': str(start_date),
+        'end_date': str(end_date),
+        'jenis_aktif': jenis_filter, 
+    }
+    return render(request, 'inventory/stok_opname.html', context)
+
+def hapus_stok_opname(request, pk):
+    if request.method == 'POST':
+        opname = get_object_or_404(StokOpname, pk=pk)
+        barang = opname.barang
+
+        try:
+            with transaction.atomic():
+                if barang:
+                    barang.qty = opname.qty_sistem
+                    barang.save()
+                    nama_barang = barang.nama_barang
+                else:
+                    nama_barang = "Barang Terhapus"
+
+                opname.delete()
+                messages.success(request, f"Riwayat opname untuk {nama_barang} berhasil dihapus.")
+        
+        except Exception as e:
+            messages.error(request, f"Gagal menghapus data: {str(e)}")
+            
+    return redirect('stok_opname')
+        
