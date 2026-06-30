@@ -2,6 +2,8 @@
 
 {% block page_title %}Hutang{% endblock %}
 
+{% load humanize %}
+
 {% block content %}
 
 <div class="action-bar">
@@ -48,7 +50,7 @@
                             <span class="text-muted">-</span>
                         {% endif %}
                     </td>
-                    <td style="text-align: right; color: #dc3545; font-weight: bold;">Rp {{ h.sisa_hutang|floatformat:0 }}</td>
+                    <td style="text-align: right; color: #dc3545; font-weight: bold;">Rp {{ h.sisa_hutang|floatformat:0|intcomma }}</td>
                     <td class="text-center">
                         <div class="d-flex gap-2 justify-content-center align-items-center">
                             <button class="btn-action-outline btn-detail-hutang" data-bs-toggle="modal" data-bs-target="#modalBayarHutang">
@@ -119,13 +121,13 @@
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Harga@</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark bg-light text-end" id="modal-harga" readonly>
+                            <input type="text" class="form-control border-dark bg-light" id="modal-harga" readonly>
                         </div>
                     </div>
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Total</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control border-dark bg-light text-end" id="modal-total" readonly>
+                            <input type="text" class="form-control border-dark bg-light" id="modal-total" readonly>
                         </div>
                     </div>
                     <div class="mb-3 row">
@@ -137,7 +139,7 @@
                     <div class="mb-3 row">
                         <label class="col-sm-4 col-form-label fw-bold">Nominal Cicil</label>
                         <div class="col-sm-8">
-                            <input type="number" class="form-control border-dark text-end" id="modal-nominal-cicil" name="nominal_cicil" required>
+                            <input type="text" class="form-control border-dark" id="modal-nominal-cicil" name="nominal_cicil" placeholder="0" required>
                         </div>
                     </div>
                     <div class="mb-3 row">
@@ -293,7 +295,6 @@
         font-weight: bold;
     }   
 </style>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const detailButtons = document.querySelectorAll('.btn-detail-hutang');
@@ -323,20 +324,62 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('modal-qty').value = qty;
             document.getElementById('modal-suplier').value = suplier;
             
-            // Format Rupiah Tampilan
+            // Format Rupiah Tampilan (Hanya angka dan titik)
             document.getElementById('modal-harga').value = formatRibuan(harga);
             document.getElementById('modal-total').value = formatRibuan(total);
             document.getElementById('modal-sisa-hutang').value = formatRibuan(sisa);
             
+            // Reset field nominal cicil setiap kali modal baru dibuka
+            document.getElementById('modal-nominal-cicil').value = '';
+
             // Mengatur default tanggal pembayaran ke hari ini
             const hariIni = new Date().toISOString().split('T')[0];
-            document.getElementById('modal-tgl-bayar').value = hariIni;
+            const tglBayarInput = document.getElementById('modal-tgl-bayar');
+            if (tglBayarInput) {
+                tglBayarInput.value = hariIni;
+                tglBayarInput.removeAttribute('readonly'); // Pastikan user bisa memilih tanggal jika dibutuhkan
+            }
         });
     });
+
+    // --- LOGIKA REALTIME AUTO-TITIK NOMINAL CICIL ---
+    const inputCicil = document.getElementById('modal-nominal-cicil');
+    if (inputCicil) {
+        inputCicil.addEventListener('input', function() {
+            // Bersihkan selain angka
+            let nilaiBersih = this.value.replace(/\D/g, '');
+            if (!nilaiBersih || nilaiBersih === '0') {
+                this.value = '';
+                return;
+            }
+            // Set ke format ribuan bertitik
+            this.value = parseInt(nilaiBersih).toLocaleString('id-ID');
+        });
+    }
+
+    // --- PEMBERSIH TITIK SEBELUM SUBMIT KE DJANGO ---
+    const formBayarHutang = document.querySelector("#modalBayarHutang form");
+    if (formBayarHutang) {
+        formBayarHutang.addEventListener('submit', function() {
+            if (inputCicil) {
+                // Kembalikan ke angka murni (misal: 1.500.000 menjadi 1500000) sebelum dikirim
+                inputCicil.value = dapatkanAngkaMurni(inputCicil.value);
+            }
+        });
+    }
 });
 
+// =========================================================================
+// FUNGSI PEMBANTU GLOBAL
+// =========================================================================
 function formatRibuan(angka) {
-    return "Rp " + new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(angka);
+    if (!angka || angka === 0) return '0';
+    return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(angka);
+}
+
+function dapatkanAngkaMurni(str) {
+    if (!str) return 0;
+    return parseInt(String(str).replace(/\./g, '')) || 0;
 }
 </script>
 {% endblock %}

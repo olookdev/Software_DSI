@@ -30,7 +30,7 @@
                     <td>{{ item.order.no_order }}</td>
                     <td>{{ item.order.nama_order|default:"-" }}</td>
                     <td>{{ item.order.tgl_order|date:"d-m-Y" }}</td>
-                    <td>Rp {{ item.sisa_piutang|floatformat:0|intcomma }}</td>
+                    <td class ="text-danger fw-bold">Rp {{ item.sisa_piutang|floatformat:0|intcomma }}</td>
                     <td>{{ item.status }}</td>
                     <td class="text-center">
                         <div class="d-flex gap-2 justify-content-center align-items-center">
@@ -86,7 +86,7 @@
                             </div>
                             <hr class="my-2">
                             <div class="row">
-                                <div class="col-5 text-muted fw-bold text-danger">Sisa Piutang:</div>
+                                <div class="col-5 text-muted fw-bold text-danger ">Sisa Piutang:</div>
                                 <div class="col-7 fw-bold text-danger" id="modalSisaPiutang">Rp 0</div>
                             </div>
                         </div>
@@ -94,12 +94,12 @@
 
                     <div class="mb-3">
                         <label for="nominal_pembayaran" class="form-label fw-semibold">Nominal Pembayaran (Rp)</label>
-                        <input type="number" 
-                               name="nominal_pembayaran" 
-                               id="nominal_pembayaran" 
-                               class="form-control" 
-                               placeholder="Masukkan jumlah uang cicilan..." 
-                               required>
+                        <input type="text" 
+                            name="nominal_pembayaran" 
+                            id="nominal_pembayaran" 
+                            class="form-control" 
+                            placeholder="Masukkan jumlah uang cicilan..." 
+                            required>
                     </div>
                     
                     <div class="mb-3">
@@ -116,44 +116,6 @@
                     <button type="submit" class="btn btn-success fw-bold">Simpan Pembayaran</button>
                 </div>
             </form>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="modalBayarPiutang" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered"> 
-        <div class="modal-content custom-modal-style">
-            <button type="button" class="custom-close-btn" data-bs-dismiss="modal">
-                <i class="bi bi-x-circle-fill"></i>
-            </button>
-            <div class="modal-body p-4">
-                <h2 class="text-center fw-bold mb-4">Bayar Piutang</h2>                        
-                <form action="" method="POST">
-                    {% csrf_token %}
-                    <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Tanggal Pembayaran </label>
-                        <div class="col-sm-8">
-                            <input type="date" class="form-control border-dark">
-                        </div>
-                    </div>
-                    <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Nominal</label>
-                        <div class="col-sm-8">
-                            <input type="number" class="form-control border-dark">
-                        </div>
-                    </div>
-                    <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Sisa Piutang</label>
-                        <div class="col-sm-8">
-                            <input type="number" class="form-control border-dark" readonly>
-                        </div>
-                    </div>
-                    <div class="d-flex justify-content-center gap-3">
-                        <button type="submit" class="btn-tambah-modal">Bayar</button>
-                        <button type="reset" class="btn-hapus-modal">Reset</button>
-                    </div>
-                </form>
-            </div>
         </div>
     </div>
 </div>
@@ -365,12 +327,16 @@
         opacity: 0.2 !important;
     }
 </style>
-
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     // Tangkap semua tombol mata/detail piutang
     const detailButtons = document.querySelectorAll('.btn-detail-piutang');
+    const inputNominal = document.getElementById('nominal_pembayaran');
+    const formBayar = document.getElementById('formBayarCicilan');
     
+    // Variabel global scope script untuk menyimpan angka murni sisa piutang aktif
+    let sisaPiutangMurni = 0;
+
     detailButtons.forEach(button => {
         button.addEventListener('click', function () {
             // Ambil data-attributes dari tombol yang diklik
@@ -378,25 +344,62 @@ document.addEventListener('DOMContentLoaded', function () {
             const namaCustomer = this.getAttribute('data-nama');
             const noOrder = this.getAttribute('data-noorder');
             const namaOrder = this.getAttribute('data-namaorder');
-            const sisaPiutang = this.getAttribute('data-sisa');
+            sisaPiutangMurni = parseFloat(this.getAttribute('data-sisa')) || 0;
 
             // Suntik data ke elemen teks di dalam modal
             document.getElementById('modalNamaCustomer').innerText = namaCustomer;
             document.getElementById('modalNoOrder').innerText = noOrder;
             document.getElementById('modalNamaOrder').innerText = namaOrder;
-            document.getElementById('modalSisaPiutang').innerText = 'Rp ' + parseInt(sisaPiutang).toLocaleString('id-ID');
+            document.getElementById('modalSisaPiutang').innerText = 'Rp ' + sisaPiutangMurni.toLocaleString('id-ID');
 
-            // Atur batas maksimal input pembayaran agar tidak melebihi sisa piutang
-            const inputNominal = document.getElementById('nominal_pembayaran');
-            inputNominal.max = sisaPiutang;
-            inputNominal.value = ''; // Reset form input nominal
-            document.getElementById('keterangan').value = ''; // Reset form keterangan
+            // Reset field modal setiap kali baru dibuka
+            inputNominal.value = ''; 
+            document.getElementById('keterangan').value = ''; 
 
             // Ubah secara dinamis URL Form Action agar mengarah ke view bayar_cicilan sesuai ID
-            const formBayar = document.getElementById('formBayarCicilan');
             formBayar.action = `/piutang/bayar/${piutangId}/`;
         });
     });
+
+    // --- REALTIME AUTO-TITIK SAAT MENGETIK NOMINAL PEMBAYARAN ---
+    if (inputNominal) {
+        inputNominal.addEventListener('input', function() {
+            // Bersihkan semua karakter non-angka
+            let nilaiBersih = this.value.replace(/\D/g, '');
+            
+            if (!nilaiBersih || nilaiBersih === '0') {
+                this.value = '';
+                return;
+            }
+
+            let angkaMurniKetik = parseInt(nilaiBersih) || 0;
+
+            // Validasi: Jika ketikan melebihi sisa piutang, paksa batasi ke angka maksimalnya
+            if (angkaMurniKetik > sisaPiutangMurni) {
+                alert("Nominal pembayaran tidak boleh melebihi sisa piutang!");
+                angkaMurniKetik = sisaPiutangMurni;
+            }
+
+            // Set kembali value ke input dalam bentuk format ribuan bertitik
+            this.value = angkaMurniKetik.toLocaleString('id-ID');
+        });
+    }
+
+    // --- PEMBERSIH TITIK SEBELUM DATA SUBMIT MASUK KE BACKEND DJANGO ---
+    if (formBayar) {
+        formBayar.addEventListener('submit', function() {
+            if (inputNominal) {
+                // Konversi kembali dari format bertitik (ex: 2.500.000) menjadi mentah (2500000)
+                inputNominal.value = dapatkanAngkaMurni(inputNominal.value);
+            }
+        });
+    }
 });
+
+// Fungsi pembantu membersihkan titik ribuan
+function dapatkanAngkaMurni(str) {
+    if (!str) return 0;
+    return parseInt(String(str).replace(/\./g, '')) || 0;
+}
 </script>
 {% endblock %}

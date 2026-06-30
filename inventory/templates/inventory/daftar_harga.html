@@ -186,7 +186,7 @@
                         <div class="col-sm-8">
                             <div class="input-group">
                                 <span class="input-group-text bg-light border-dark">Rp</span>
-                                <input type="number" name="harga_satuan" class="form-control border-dark" placeholder="0" min="0" required>
+                                <input type="text" name="harga_satuan" id="harga-satuan-stok" class="form-control border-dark input-format-rupiah" placeholder="0" required>
                             </div>
                         </div>
                     </div>
@@ -307,20 +307,20 @@
                     </datalist>
 
                     <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="fw-bold">Biaya Tenaga</label>
-                            <input type="number" name="biaya_tenaga" id="add-tenaga" class="form-control border-dark" value="0" oninput="hitungKalkulasiTotal()">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="fw-bold">Biaya Listrik</label>
-                            <input type="number" name="biaya_listrik" id="add-listrik" class="form-control border-dark" value="0" oninput="hitungKalkulasiTotal()">
-                        </div>
-                    </div>
+    <div class="col-md-6">
+        <label class="fw-bold">Biaya Tenaga</label>
+        <input type="text" name="biaya_tenaga" id="add-tenaga" class="form-control border-dark" value="0">
+    </div>
+    <div class="col-md-6">
+        <label class="fw-bold">Biaya Listrik</label>
+        <input type="text" name="biaya_listrik" id="add-listrik" class="form-control border-dark" value="0">
+    </div>
+</div>
 
-                    <div class="mb-3">
-                        <label class="fw-bold text-success">Harga Jual Akhir (Rp)</label>
-                        <input type="number" name="harga_jual_akhir" id="add-harga-jual" class="form-control border-dark fw-bold text-success" value="0" oninput="hitungKalkulasiTotal()" required>
-                    </div>
+<div class="mb-3">
+    <label class="fw-bold text-success">Harga Jual Akhir (Rp)</label>
+    <input type="text" name="harga_jual_akhir" id="add-harga-jual" class="form-control border-dark fw-bold text-success" value="0" required>
+</div>
 
                     <div class="mb-3">
                         <label class="fw-bold">Keterangan / Catatan</label>
@@ -585,7 +585,6 @@
         display: block !important;
     }
 </style>
-
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const hash = window.location.hash;
@@ -597,6 +596,21 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 });
+
+// =========================================================================
+// FUNGSI PEMBANTU GLOBAL: FORMAT RUPIAH & STRIP TITIK
+// =========================================================================
+function formatRibuan(angka) {
+    let nilaiBersih = String(angka).replace(/\D/g, '');
+    if (!nilaiBersih || nilaiBersih === '0') return '';
+    let nilai = parseInt(nilaiBersih) || 0;
+    return nilai.toLocaleString('id-ID');
+}
+
+function dapatkanAngkaMurni(str) {
+    if (!str) return 0;
+    return parseInt(String(str).replace(/\./g, '')) || 0;
+}
 
 // =========================================================================
 // 1. LOGIKA UTAMA MODAL TAMBAH (DYNAMIC ROWS & REALTIME METRICS)
@@ -625,6 +639,7 @@ function handlePilihBahan(inputElement) {
     viewHargaElement.value = hrg > 0 ? "Rp " + hrg.toLocaleString('id-ID') : "";
     viewHargaElement.setAttribute('data-harga-aktif', hrg);
 
+    // Memicu kalkulasi metrik lengkap modal tambah secara realtime
     hitungKalkulasiTotal();
 }
 
@@ -685,19 +700,17 @@ function pemicuModalEditJual(rowElement) {
 }
 
 function bukaModalEditJual(id, nama, tenaga, listrik, keterangan, hargaJual, listBahanArray) {
-    // Set field induk modal edit
     document.getElementById('edit-id-harga-jual').value = id;
     document.getElementById('edit-nama-produk').value = nama;
-    document.getElementById('edit-tenaga').value = parseInt(parseFloat(tenaga)) || 0;
-    document.getElementById('edit-listrik').value = parseInt(parseFloat(listrik)) || 0;
+    
+    document.getElementById('edit-tenaga').value = formatRibuan(parseInt(parseFloat(tenaga)) || 0);
+    document.getElementById('edit-listrik').value = formatRibuan(parseInt(parseFloat(listrik)) || 0);
     document.getElementById('edit-keterangan-produk').value = keterangan;
-    document.getElementById('edit-harga-jual').value = parseInt(parseFloat(hargaJual)) || 0;
+    document.getElementById('edit-harga-jual').value = formatRibuan(parseInt(parseFloat(hargaJual)) || 0);
 
-    // Bersihkan wadah edit lama
     const wadah = document.getElementById('wadah-edit-baris-bahan');
     wadah.innerHTML = "";
 
-    // Inject data bahan bawaannya
     if (listBahanArray && listBahanArray.length > 0) {
         listBahanArray.forEach(function(b) {
             tambahBarisBahanEditBaru(b.id, b.nama, b.harga);
@@ -708,7 +721,6 @@ function bukaModalEditJual(id, nama, tenaga, listrik, keterangan, hargaJual, lis
 
     hitungKalkulasiTotalEdit();
 
-    // Show modal Bootstrap
     const modalEdit = new bootstrap.Modal(document.getElementById('editHargaJualModal'));
     modalEdit.show();
 }
@@ -789,13 +801,13 @@ function hitungKalkulasiTotalEdit() {
         totalHargaBahan += parseFloat(inputHarga.getAttribute('data-harga-aktif')) || 0;
     });
 
-    const biayaTenaga = parseFloat(document.getElementById('edit-tenaga').value) || 0;
-    const biayaListrik = parseFloat(document.getElementById('edit-listrik').value) || 0;
+    const biayaTenaga = dapatkanAngkaMurni(document.getElementById('edit-tenaga').value);
+    const biayaListrik = dapatkanAngkaMurni(document.getElementById('edit-listrik').value);
 
     const totalHPP = totalHargaBahan + biayaTenaga + biayaListrik;
     document.getElementById('edit-display-hpp').innerText = "Rp " + totalHPP.toLocaleString('id-ID');
 
-    const hargaJual = parseFloat(document.getElementById('edit-harga-jual').value) || 0;
+    const hargaJual = dapatkanAngkaMurni(document.getElementById('edit-harga-jual').value);
     let marginNominal = hargaJual - totalHPP;
     let marginPersen = hargaJual > 0 ? (marginNominal / hargaJual) * 100 : 0;
 
@@ -806,6 +818,121 @@ function hitungKalkulasiTotalEdit() {
     displayPersen.className = marginNominal < 0 ? "fw-bold text-danger" : "fw-bold text-success";
 }
 
+function hitungKalkulasiTotal() {
+    let totalHargaBahan = 0;
+    
+    const seluruhHargaBahan = document.querySelectorAll('#wadah-baris-bahan .view-harga-satuan-bahan');
+    seluruhHargaBahan.forEach(function(inputHarga) {
+        totalHargaBahan += parseFloat(inputHarga.getAttribute('data-harga-aktif')) || 0;
+    });
+
+    const biayaTenaga = dapatkanAngkaMurni(document.getElementById('add-tenaga').value);
+    const biayaListrik = dapatkanAngkaMurni(document.getElementById('add-listrik').value);
+
+    const totalHPP = totalHargaBahan + biayaTenaga + biayaListrik;
+    document.getElementById('display-hpp').innerText = "Rp " + totalHPP.toLocaleString('id-ID');
+
+    const hargaJual = dapatkanAngkaMurni(document.getElementById('add-harga-jual').value);
+    let marginNominal = hargaJual - totalHPP;
+    let marginPersen = hargaJual > 0 ? (marginNominal / hargaJual) * 100 : 0;
+
+    document.getElementById('display-margin-nominal').innerText = "Rp " + marginNominal.toLocaleString('id-ID');
+    
+    const displayPersen = document.getElementById('display-margin-persen');
+    displayPersen.innerText = marginPersen.toFixed(1) + "%";
+    displayPersen.className = marginNominal < 0 ? "fw-bold text-danger" : "fw-bold text-success";
+}
+
+// =========================================================================
+// 3. EVENT LISTENER FORMATTING & EVENT SUBMIT FORM
+// =========================================================================
+document.addEventListener("DOMContentLoaded", function() {
+    // --- SEKTOR INPUT MODAL TAMBAH ---
+    const addHargaSatuan = document.getElementById('harga-satuan-stok'); 
+    const addTenaga = document.getElementById('add-tenaga');
+    const addListrik = document.getElementById('add-listrik');
+    const addHargaJual = document.getElementById('add-harga-jual'); // Ambli ID Baru Harga Jual Modal Tambah
+    
+    if (addHargaSatuan) {
+        addHargaSatuan.addEventListener('input', function() {
+            this.value = formatRibuan(this.value);
+        });
+    }
+
+    if (addTenaga) {
+        addTenaga.addEventListener('input', function() {
+            this.value = formatRibuan(this.value);
+            hitungKalkulasiTotal();
+        });
+    }
+    if (addListrik) {
+        addListrik.addEventListener('input', function() {
+            this.value = formatRibuan(this.value);
+            hitungKalkulasiTotal();
+        });
+    }
+    if (addHargaJual) {
+        addHargaJual.addEventListener('input', function() {
+            this.value = formatRibuan(this.value);
+            hitungKalkulasiTotal();
+        });
+    }
+
+    // --- SEKTOR INPUT MODAL EDIT ---
+    const editTenaga = document.getElementById('edit-tenaga');
+    const editListrik = document.getElementById('edit-listrik');
+    const editHargaJual = document.getElementById('edit-harga-jual');
+
+    if (editTenaga) {
+        editTenaga.addEventListener('input', function() {
+            this.value = formatRibuan(this.value);
+            hitungKalkulasiTotalEdit();
+        });
+    }
+    if (editListrik) {
+        editListrik.addEventListener('input', function() {
+            this.value = formatRibuan(this.value);
+            hitungKalkulasiTotalEdit();
+        });
+    }
+    if (editHargaJual) {
+        editHargaJual.addEventListener('input', function() {
+            this.value = formatRibuan(this.value);
+            hitungKalkulasiTotalEdit();
+        });
+    }
+
+    // --- PEMBERSIH TITIK SEBELUM SUBMIT KE DJANGO ---
+    const formTambahHargaStok = document.querySelector("#tambahhargastok form");
+    if (formTambahHargaStok) {
+        formTambahHargaStok.addEventListener('submit', function() {
+            if (addHargaSatuan) addHargaSatuan.value = dapatkanAngkaMurni(addHargaSatuan.value);
+        });
+    }
+
+    // Disinkronkan dengan id modal tambah harga jual milik Mas: #tambahhargajual
+    const formTambahJual = document.querySelector("#tambahhargajual form");
+    if (formTambahJual) {
+        formTambahJual.addEventListener('submit', function() {
+            if (addTenaga) addTenaga.value = dapatkanAngkaMurni(addTenaga.value);
+            if (addListrik) addListrik.value = dapatkanAngkaMurni(addListrik.value);
+            if (addHargaJual) addHargaJual.value = dapatkanAngkaMurni(addHargaJual.value);
+        });
+    }
+
+    const formEditJual = document.querySelector("#editHargaJualModal form");
+    if (formEditJual) {
+        formEditJual.addEventListener('submit', function() {
+            if (editTenaga) editTenaga.value = dapatkanAngkaMurni(editTenaga.value);
+            if (editListrik) editListrik.value = dapatkanAngkaMurni(editListrik.value);
+            if (editHargaJual) editHargaJual.value = dapatkanAngkaMurni(editHargaJual.value);
+        });
+    }
+});
+
+// =========================================================================
+// 4. OTOMATISASI SELECT BARANG JUAL (MODAL TAMBAH SELECTION UTAMA)
+// =========================================================================
 function updateDataBarang() {
     const selectBarang = document.getElementById('add-select-barang-jual');
     if (!selectBarang) return;
@@ -817,7 +944,6 @@ function updateDataBarang() {
     const viewHargaBahan = document.getElementById('view-harga-bahan');
     const hiddenIdHargaStok = document.getElementById('id-harga-stok-hidden');
 
-    // Cek value select secara bersih tanpa spasi
     const valueTerpilih = selectBarang.value ? selectBarang.value.toString().trim() : "";
 
     if (valueTerpilih === "") {
@@ -825,54 +951,25 @@ function updateDataBarang() {
         if(viewKet) viewKet.value = "";
         if(viewHargaBahan) viewHargaBahan.value = "0";
         if(hiddenIdHargaStok) hiddenIdHargaStok.value = "";
-        hitungTotalHPP();
+        hitungKalkulasiTotal();
         return;
     }
 
-    // Ambil atribut murni dari tag <option> HTML
     const kode = (selectedOption.getAttribute('data-kode') || '-').trim();
     const keterangan = (selectedOption.getAttribute('data-ket') || '-').trim();
     const hargaRaw = selectedOption.getAttribute('data-harga');
     const hargaBahan = parseFloat(hargaRaw) || 0;
     const idHargaStok = (selectedOption.getAttribute('data-idstok') || '').trim();
 
-    // Debugging langsung ke console browser (F12)
-    console.log("LOG KLIK -> ID Barang:", valueTerpilih);
-    console.log("LOG KLIK -> Atribut data-harga mentah:", hargaRaw);
-    console.log("LOG KLIK -> Angka Parsed:", hargaBahan);
-
-    // Masukkan data ke element input modal secara realtime
     if (viewKode) viewKode.value = kode;
     if (viewKet) viewKet.value = keterangan;
     
     if (viewHargaBahan) {
-        // Menampilkan angka dengan format ribuan rupiah (contoh: 100.000)
         viewHargaBahan.value = hargaBahan.toLocaleString('id-ID');
     }
     if (hiddenIdHargaStok) hiddenIdHargaStok.value = idHargaStok;
 
-    // Hitung akumulasi HPP bersama biaya tenaga & listrik
-    hitungTotalHPP();
-}
-
-function hitungTotalHPP() {
-    const selectBarang = document.getElementById('add-select-barang-jual');
-    let hargaBahan = 0;
-
-    if (selectBarang && selectBarang.value !== "") {
-        const selectedOption = selectBarang.options[selectBarang.selectedIndex];
-        hargaBahan = parseFloat(selectedOption.getAttribute('data-harga')) || 0;
-    }
-
-    const biayaTenaga = parseFloat(document.getElementById('add-tenaga').value) || 0;
-    const biayaListrik = parseFloat(document.getElementById('add-listrik').value) || 0;
-
-    const totalHPP = hargaBahan + biayaTenaga + biayaListrik;
-
-    const hppDisplay = document.getElementById('add-total-hpp');
-    if (hppDisplay) {
-        hppDisplay.innerText = totalHPP.toLocaleString('id-ID');
-    }
+    hitungKalkulasiTotal();
 }
 
 function tutupInfoBarang() {
@@ -880,32 +977,28 @@ function tutupInfoBarang() {
     if (infoBarang) infoBarang.style.display = 'none';
 }
 
-
 function bukaModalEdit(idHarga, idBarang, idSuplier, hargaSatuan) {
-    // Jalur distribusi data dari tabel ke ID element modal yang benar
     document.getElementById('edit-stok-id-harga').value = idHarga;
     document.getElementById('edit-stok-barang').value = idBarang;
     document.getElementById('edit-stok-suplier').value = idSuplier;
     
-    // Parse nominal harga agar masuk sebagai angka bulat bersih ke input type="number"
-    document.getElementById('edit-stok-harga').value = parseInt(parseFloat(hargaSatuan)) || 0;
+    document.getElementById('edit-stok-harga').value = formatRibuan(parseInt(parseFloat(hargaSatuan)) || 0);
 
-    // Tampilkan modal setelah data selesai didistribusikan
     const modalStokElement = document.getElementById('editHargaModal');
     const modalStok = new bootstrap.Modal(modalStokElement);
     modalStok.show();
 }
 
+// =========================================================================
+// 5. SISTEM PENCARIAN (SEARCH BAR AUTO RESUBMIT)
+// =========================================================================
 document.addEventListener("DOMContentLoaded", function() {
-    // Cari elemen tag input di dalam komponen search_bar
     const searchInput = document.querySelector("#harga-search-container input[type='text']");
     const searchForm = document.getElementById("form-search-harga");
 
     if (searchInput) {
-        // Kembalikan kata kunci pencarian terakhir ke dalam kotak input agar tidak hilang pasca reload
         searchInput.value = "{{ query|default:'' }}";
 
-        // Kirim pencarian ke server saat ditekan Enter
         searchInput.addEventListener("keypress", function(e) {
             if (e.key === "Enter") {
                 e.preventDefault();
@@ -913,7 +1006,6 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         });
 
-        // Kirim ulang/reset pencarian otomatis jika teks dihapus kosong melompong
         searchInput.addEventListener("input", function() {
             if (this.value === "") {
                 searchForm.submit();
@@ -927,11 +1019,9 @@ document.addEventListener("DOMContentLoaded", function() {
     const searchForm = document.getElementById("form-search-jual");
 
     if (searchInput) {
-        // Set value input dengan pencarian terakhir agar teksnya tidak hilang setelah reload
-        searchInput.name = "search_jual"; // Set atribut name input secara dinamis
+        searchInput.name = "search_jual";
         searchInput.value = "{{ query_jual|default:'' }}";
 
-        // Cari data ketika menekan tombol Enter
         searchInput.addEventListener("keypress", function(e) {
             if (e.key === "Enter") {
                 e.preventDefault();
@@ -939,7 +1029,6 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         });
 
-        // Auto reload table bersih jika user menghapus semua kata di kolom cari
         searchInput.addEventListener("input", function() {
             if (this.value === "") {
                 searchForm.submit();
@@ -948,5 +1037,4 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 });
 </script>
-
 {% endblock %}

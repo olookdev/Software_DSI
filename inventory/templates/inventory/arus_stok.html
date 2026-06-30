@@ -335,39 +335,70 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-        const realSearchInput = document.querySelector("#arus-search-field input[type='text']");
-        const hiddenSearch = document.getElementById("hidden-arus-search");
-        const filterForm = document.getElementById("form-arus-filter");
+    const realSearchInput = document.querySelector("#arus-search-field input[type='text']");
+    const hiddenSearch = document.getElementById("hidden-arus-search");
+    const filterForm = document.getElementById("form-arus-filter");
 
-        if (realSearchInput) {
-            // Pasang teks pencarian terakhir agar tidak hilang setelah reload halaman
-            realSearchInput.value = hiddenSearch.value;
+    if (realSearchInput) {
+        realSearchInput.value = hiddenSearch.value;
 
-            // Trigger submit otomatis saat menekan tombol ENTER pada search bar
-            realSearchInput.addEventListener("keypress", function(e) {
-                if (e.key === "Enter") {
-                    e.preventDefault();
-                    hiddenSearch.value = realSearchInput.value;
-                    filterForm.submit();
-                }
-            });
+        realSearchInput.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                hiddenSearch.value = realSearchInput.value;
+                filterForm.submit();
+            }
+        });
 
-            // Otomatis refresh data kembali semula jika user menghapus bersih kata kunci pencarian
-            realSearchInput.addEventListener("input", function() {
-                if (realSearchInput.value === "") {
-                    hiddenSearch.value = "";
-                    filterForm.submit();
-                }
-            });
-        }
-    });
+        realSearchInput.addEventListener("input", function() {
+            if (realSearchInput.value === "") {
+                hiddenSearch.value = "";
+                filterForm.submit();
+            }
+        });
+    }
+});
+
 // =========================================================================
 // FUNGSI PEMBANTU: FORMAT ANGKA MENJADI RIBUAN INDONESIA (100.000)
 // =========================================================================
 function formatRibuan(angka) {
-    if (!angka || angka === '0') return '0';
-    let nilai = Math.round(parseFloat(angka)) || 0;
+    let nilaiBersih = String(angka).replace(/\D/g, '');
+    if (!nilaiBersih || nilaiBersih === '0') return '';
+    let nilai = parseInt(nilaiBersih) || 0;
     return nilai.toLocaleString('id-ID');
+}
+
+function dapatkanAngkaMurni(str) {
+    if (!str) return 0;
+    return parseInt(String(str).replace(/\./g, '')) || 0;
+}
+
+// =========================================================================
+// KALKULATOR UTAMA (DILUAR ASAL SUPAYA TIDAK MATI SAAT RENDER HTML)
+// =========================================================================
+function hitungFinansialArus() {
+    const qtyInput = document.getElementById('arus-qty');
+    const hargaInput = document.getElementById('arus-harga');
+    const totalInput = document.getElementById('arus-total');
+    const pembayaranInput = document.getElementById('arus-pembayaran');
+    const sisaInput = document.getElementById('arus-sisa');
+
+    // Jika input harga tidak ada di layar (misal mode Pemakaian), hentikan kalkulasi
+    if (!hargaInput || !totalInput) return;
+
+    const qty = parseInt(qtyInput.value) || 0;
+    const harga = dapatkanAngkaMurni(hargaInput.value);
+    
+    // 1. Hitung Total Biaya
+    const total = qty * harga;
+    totalInput.value = total > 0 ? formatRibuan(total) : '0';
+
+    // 2. Hitung Sisa Pembayaran
+    const pembayaran = dapatkanAngkaMurni(pembayaranInput.value);
+    const sisa = total - pembayaran;
+    
+    sisaInput.value = sisa > 0 ? formatRibuan(sisa) : '0';
 }
 
 // =========================================================================
@@ -424,25 +455,25 @@ function updateFormFields() {
             <div class="mb-3 row">
                 <label class="col-sm-4 col-form-label fw-bold">Harga Satuan (@)</label>
                 <div class="col-sm-8">
-                    <input type="number" class="form-control border-dark" name="harga_satuan" id="arus-harga" placeholder="0" required>
+                    <input type="text" class="form-control border-dark input-format-rupiah" name="harga_satuan" id="arus-harga" placeholder="0" required>
                 </div>
             </div>
             <div class="mb-3 row">
                 <label class="col-sm-4 col-form-label fw-bold">Total Biaya</label>
                 <div class="col-sm-8">
-                    <input type="number" class="form-control border-dark bg-light" id="arus-total" readonly placeholder="Otomatis terhitung">
+                    <input type="text" class="form-control border-dark bg-light" id="arus-total" name="total_biaya" readonly placeholder="Otomatis terhitung">
                 </div>
             </div>
             <div class="mb-3 row">
                 <label class="col-sm-4 col-form-label fw-bold">Pembayaran</label>
                 <div class="col-sm-8">
-                    <input type="number" class="form-control border-dark" id="arus-pembayaran" name="pembayaran" placeholder="Masukkan jumlah uang dibayar">
+                    <input type="text" class="form-control border-dark input-format-rupiah" id="arus-pembayaran" name="pembayaran" placeholder="Masukkan jumlah uang dibayar">
                 </div>
             </div>
             <div class="mb-3 row">
                 <label class="col-sm-4 col-form-label fw-bold">Sisa Pembayaran</label>
                 <div class="col-sm-8">
-                    <input type="number" class="form-control bg-light border-dark" id="arus-sisa" readonly placeholder="Otomatis terhitung">
+                    <input type="text" class="form-control bg-light border-dark" id="arus-sisa" name="sisa_pembayaran" readonly placeholder="Otomatis terhitung">
                 </div>
             </div>
             <div class="mb-3 row">
@@ -456,10 +487,53 @@ function updateFormFields() {
     
     dynamicFields.innerHTML = htmlContent;
     initArusFormEvents();
+    initRupiahFormatEvents(); 
 }
 
 // =========================================================================
-// 2. DETEKSI AUTO-ID BARANG/SUPPLIER & KALKULATOR TOTAL HARGA (FORM TAMBAH)
+// 2. LOGIKA INTERAKSI INPUT & FORMATTING
+// =========================================================================
+function initRupiahFormatEvents() {
+    const qtyInput = document.getElementById('arus-qty');
+    const hargaInput = document.getElementById('arus-harga');
+    const pembayaranInput = document.getElementById('arus-pembayaran');
+
+    if (!hargaInput) return; 
+
+    // Event pengetikan angka di Harga Satuan & Pembayaran
+    const inputsRupiah = document.querySelectorAll('.input-format-rupiah');
+    inputsRupiah.forEach(input => {
+        input.addEventListener('input', function() {
+            this.value = formatRibuan(this.value);
+            hitungFinansialArus();
+        });
+    });
+
+    if (qtyInput) {
+        qtyInput.addEventListener('input', hitungFinansialArus);
+    }
+}
+
+// Pasang Pembersih Titik di Form Utama #tambahArusModal agar Django tidak Error Decimal
+document.addEventListener("DOMContentLoaded", function() {
+    const modalTambahForm = document.querySelector("#tambahArusModal form");
+    if (modalTambahForm) {
+        modalTambahForm.addEventListener("submit", function() {
+            const hargaInput = document.getElementById('arus-harga');
+            const totalInput = document.getElementById('arus-total');
+            const pembayaranInput = document.getElementById('arus-pembayaran');
+            const sisaInput = document.getElementById('arus-sisa');
+
+            if (hargaInput) hargaInput.value = dapatkanAngkaMurni(hargaInput.value);
+            if (totalInput) totalInput.value = dapatkanAngkaMurni(totalInput.value);
+            if (pembayaranInput) pembayaranInput.value = dapatkanAngkaMurni(pembayaranInput.value);
+            if (sisaInput) sisaInput.value = dapatkanAngkaMurni(sisaInput.value);
+        });
+    }
+});
+
+// =========================================================================
+// 3. DETEKSI AUTO-ID BARANG/SUPPLIER & INTEGRASI FETCH HARGA
 // =========================================================================
 function initArusFormEvents() {
     const inputBarang = document.getElementById('arus-pilih-barang');
@@ -470,12 +544,7 @@ function initArusFormEvents() {
     const inputSuplier = document.getElementById('arus-pilih-suplier');
     const hiddenSuplierId = document.getElementById('arus-suplier-id-hidden');
     const datalistSuplier = document.getElementById('data-suplier-list');
-
-    const inputQty = document.getElementById('arus-qty');
     const inputHarga = document.getElementById('arus-harga');
-    const inputTotal = document.getElementById('arus-total');
-    const inputPembayaran = document.getElementById('arus-pembayaran');
-    const inputSisa = document.getElementById('arus-sisa');
 
     if (inputBarang && datalistBarang) {
         inputBarang.addEventListener('input', function() {
@@ -516,35 +585,17 @@ function initArusFormEvents() {
             fetch(`/stok/ambil-harga/?barang_id=${barangId}&suplier_id=${suplierId}`)
                 .then(response => response.json())
                 .then(data => {
-                    if (data.status === 'success') {
-                        inputHarga.value = data.harga_satuan;
+                    if (data.status === 'success' && parseFloat(data.harga_satuan) > 0) {
+                        inputHarga.value = formatRibuan(data.harga_satuan);
                     } else {
-                        inputHarga.value = 0;
+                        inputHarga.value = '0';
                     }
-                    hitungTotal();
+                    // Jalankan kalkulasi total dan sisa
+                    hitungFinansialArus();
                 })
                 .catch(err => console.error("Gagal mengambil data harga stok:", err));
         }
     }
-
-    function hitungTotal() {
-        if (!inputQty || !inputHarga) return; 
-
-        const qty = parseFloat(inputQty.value) || 0;
-        const harga = parseFloat(inputHarga.value) || 0;
-        const total = qty * harga;
-        
-        if (inputTotal) inputTotal.value = total;
-        
-        if (inputPembayaran && inputSisa) {
-            const bayar = parseFloat(inputPembayaran.value) || 0;
-            inputSisa.value = total === 0 && bayar > 0 ? 0 : total - bayar;
-        }
-    }
-
-    if (inputQty) inputQty.addEventListener('input', hitungTotal);
-    if (inputHarga) inputHarga.addEventListener('input', hitungTotal);
-    if (inputPembayaran) inputPembayaran.addEventListener('input', hitungTotal);
 }
 
 if (selectJenisArus) {
@@ -553,7 +604,7 @@ if (selectJenisArus) {
 window.addEventListener('DOMContentLoaded', updateFormFields);
 
 // =========================================================================
-// 3. DETAIL ARUS BARANG VIA DOUBLE CLICK ROW (VIEW ONLY / READONLY)
+// 4. DETAIL ARUS BARANG VIA DOUBLE CLICK ROW (VIEW ONLY / READONLY)
 // =========================================================================
 document.addEventListener('DOMContentLoaded', function() {
     const rows = document.querySelectorAll('.row-arus-stok');
@@ -654,7 +705,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 dynamicEditFields.innerHTML = baseFields;
             }
 
-            // Memasukkan value dengan format ribuan secara rapi
             setTimeout(() => {
                 document.getElementById('edit-pilih-barang').value = namaBarang;
                 document.getElementById('edit-qty').value = qtyArus;
@@ -679,7 +729,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // =========================================================================
-// 4. FUNGSI HAPUS DATA ARUS STOK
+// 5. FUNGSI HAPUS DATA ARUS STOK
 // =========================================================================
 function hapusArusStok(id, namaBarang, jenisArus, qty) {
     const efekStok = jenisArus === 'Pembelian' ? 'mengurangi' : 'mengembalikan (menambah)';
