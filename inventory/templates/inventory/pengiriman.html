@@ -1,0 +1,454 @@
+{% extends 'inventory/base.html' %}
+
+{% block page_title %}Pengiriman{% endblock page_title %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+        <div class="card-body p-4">
+
+            <div class="row text-center text-md-start g-3 mb-4">
+                <div class="col-md-4">
+                    <span class="text-muted d-block small mb-1">No Order</span>
+                    <strong class="fs-5 text-dark">{{ order.no_order }}</strong>
+                </div>
+                <div class="col-md-4 border-md-start">
+                    <span class="text-muted d-block small mb-1">Kode Customer</span>
+                    <strong class="fs-5 text-dark">{{ order.customer.kode_customer }}</strong>
+                </div>
+                <div class="col-md-4 border-md-start">
+                    <span class="text-muted d-block small mb-1">Nama Customer</span>
+                    <strong class="fs-5 text-dark text-capitalize">{{ order.customer.nama_customer }}</strong>
+                </div>
+            </div>
+
+            <div class="table-responsive rounded-3 mb-4">
+                <table class="table table-bordered align-middle text-center m-0">
+                    <thead style="background-color: #E9ECEF; color: #333;">
+                        <tr>
+                            <th class="py-3 fw-semibold" style="width: 25%;">Kode Item</th>
+                            <th class="py-3 fw-semibold" style="width: 35%;">Nama Item</th>
+                            <th class="py-3 fw-semibold" style="width: 15%;">Qty</th>
+                            <th class="py-3 fw-semibold" style="width: 25%;">Ukuran</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        {% for item in items %}
+                            <tr>
+                                <td class="py-3 text-muted">{{ item.kode_item }}</td>
+                                <td class="py-3 fw-medium">{{ item.nama_item }}</td>
+                                <td class="py-3">
+                                    <span class="badge bg-secondary-subtle text-secondary px-3 py-2 rounded-pill">{{ item.qty }}</span>
+                                </td>
+                                <td class="py-3 text-muted">{{ item.panjang | floatformat:1 }} × {{ item.lebar | floatformat:1 }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <hr style="border: 3px solid #000; opacity: 1;" class="my-4 rounded">
+
+            <div class="row justify-content-center mb-4">
+                <div class="col-12 text-center">
+                    <div class="map-container rounded-4 overflow-hidden border shadow-sm d-inline-block w-100"
+                        style="height: 400px; max-width: 700px;">
+                        <iframe src="https://maps.google.com/maps?q=-6.175392,106.827153&t=&z=13&ie=UTF8&iwloc=&output=embed"
+                            width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"
+                            referrerpolicy="no-referrer-when-downgrade">
+                        </iframe>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <button type="button" id="btn-tambah-pengiriman"
+                    class="btn btn-outline-dark px-5 py-2-5 rounded-pill fw-medium shadow-sm transition-all"
+                    style="border-width: 1.5px;">
+                    <i class="bi bi-plus-lg me-2"></i>Pengiriman
+                </button>
+            </div>
+
+            <div id="form-pengiriman-container" class="d-none mt-4 transition-all">
+                <form id="form-split-order" onsubmit="return false;">
+                    <div class="border rounded-4 p-4 shadow-sm bg-white mb-4">
+                        <div class="row g-3 align-items-center mb-3">
+                            <div class="col-10 col-md-6 d-flex align-items-center">
+                                <span class="text-dark fw-medium me-2 text-nowrap">Alamat :</span>
+                                <input type="text" id="input-alamat"
+                                    class="form-control rounded-pill bg-light border-secondary-subtle"
+                                    value="Jl tanah seratus, tangerang selatan, no 1 rt 12 rw 90, 11190" required>
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <div class="d-flex align-items-center">
+                                    <span class="text-dark fw-medium me-2 text-nowrap">Penerima :</span>
+                                    <input type="text" id="input-penerima"
+                                        class="form-control rounded-pill border-0 p-0 text-dark fw-semibold text-capitalize"
+                                        value="{{ order.customer.nama_customer }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="d-flex align-items-center">
+                                    <span class="text-dark fw-medium me-2 text-nowrap">No Hp :</span>
+                                    <input type="text" id="input-no-hp"
+                                        class="form-control rounded-pill border-0 p-0 text-dark fw-semibold"
+                                        value="{{ order.customer.telepon }}" required>
+                                </div>
+                            </div>
+                        </div>
+            
+                        <div class="table-responsive rounded-3 mb-3">
+                            <table class="table table-bordered align-middle text-center m-0" id="table-input-item">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 25%;">Kode Item</th>
+                                        <th style="width: 35%;">Nama Item</th>
+                                        <th style="width: 15%;">Qty</th>
+                                        <th style="width: 20%;">Ukuran</th>
+                                        <th style="width: 5%;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-input-item">
+                                    <tr>
+                                        <td>
+                                            <select class="form-select border-0 text-center bg-transparent select-kode-item"
+                                                required>
+                                                <option value="" disabled selected>- Pilih -</option>
+                                                {% for item in items %}
+                                                <option value="{{ item.kode_item }}">{{ item.kode_item }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </td>
+                                        <td><input type="text"
+                                                class="form-control border-0 text-center bg-transparent input-nama-item" readonly>
+                                        </td>
+                                        <td><input type="number" class="form-control border-0 text-center bg-transparent input-qty"
+                                                min="1" required></td>
+                                        <td><input type="text" class="form-control border-0 text-center bg-transparent input-ukuran"
+                                                readonly></td>
+                                        <td>
+                                            <button type="button"
+                                                class="btn btn-sm btn-light border rounded-circle btn-hapus-row d-none"
+                                                style="width:28px; height:28px; padding:0;">-</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+            
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <button type="button" id="btn-add-row" class="btn btn-sm btn-light border rounded-circle shadow-sm"
+                                style="width:32px; height:32px; padding:0;">+</button>
+                            <button type="button" id="btn-simpan-split"
+                                class="btn btn-outline-dark px-5 rounded-pill fw-medium shadow-sm">Simpan</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div id="daftar-split-container" class="mt-4"></div>
+            
+            <div id="final-action-container" class="text-center mt-4 d-none">
+                <form method="POST" action="">
+                    {% csrf_token %}
+                    <input type="hidden" name="payload_split_order" id="payload-split-order">
+                    <button type="submit" class="btn btn-success px-5 py-2-5 rounded-pill fw-medium shadow-sm">
+                        Konfirmasi & Proses Semua Pengiriman
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script id="items-data" type="application/json">
+    [
+        {% for item in items %}
+            {
+                "kode_item": "{{ item.kode_item }}",
+                "nama_item": "{{ item.nama_item }}",
+                "ukuran": "{{ item.panjang | floatformat:1 }} × {{ item.lebar | floatformat:1 }}"
+            }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ]
+</script>
+
+<style>
+    @media (max-width: 575.98px) {
+        .map-container {
+            height: auto !important; 
+            aspect-ratio: 4 / 3 !important; 
+        }
+    }
+
+    @media (min-width: 768px) {
+        .border-md-start {
+            border-left: 1px solid #dee2e6 !important;
+        }
+    }
+
+    .py-2-5 {
+        padding-top: 0.65rem;
+        padding-bottom: 0.65rem;
+    }
+
+    .btn-outline-dark:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .transition-all {
+        transition: all 0.2s ease-in-out;
+    }
+
+    #table-input-item input:focus, #table-input-item select:focus {
+        background-color: #f8f9fa; 
+        box-shadow: none;
+    }
+
+    .split-card { 
+        background: #fff; 
+        transition: all 0.2s; 
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const btnPengiriman = document.getElementById('btn-tambah-pengiriman');
+        const formContainer = document.getElementById('form-pengiriman-container');
+        const tbodyInput = document.getElementById('tbody-input-item');
+        const btnAddRow = document.getElementById('btn-add-row');
+        const btnSimpanSplit = document.getElementById('btn-simpan-split');
+        const daftarSplitContainer = document.getElementById('daftar-split-container');
+        const finalActionContainer = document.getElementById('final-action-container');
+        const payloadSplitOrder = document.getElementById('payload-split-order');
+
+        const itemsData = JSON.parse(document.getElementById('items-data').textContent);
+
+        // Array global untuk menyimpan state data pecahan orderan di client-side
+        let allSplitDeliveries = [];
+
+        function getDropdownOptions() {
+            let options = '<option value="" disabled selected>- Pilih -</option>';
+            itemsData.forEach(item => {
+                options += `<option value="${item.kode_item}">${item.kode_item}</option>`;
+            });
+            return options;
+        }
+
+        btnPengiriman.addEventListener('click', function () {
+            formContainer.classList.remove('d-none');
+            btnPengiriman.parentElement.classList.add('d-none');
+        });
+
+        btnAddRow.addEventListener('click', function () {
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+            <td>
+                <select class="form-select border-0 text-center bg-transparent select-kode-item" required>
+                    ${getDropdownOptions()}
+                </select>
+            </td>
+            <td><input type="text" class="form-control border-0 text-center bg-transparent input-nama-item" readonly></td>
+            <td><input type="number" class="form-control border-0 text-center bg-transparent input-qty" min="1" required></td>
+            <td><input type="text" class="form-control border-0 text-center bg-transparent input-ukuran" readonly></td>
+            <td>
+                <button type="button" class="btn btn-sm btn-light border rounded-circle btn-hapus-row" style="width:28px; height:28px; padding:0;">-</button>
+            </td>
+        `;
+            tbodyInput.appendChild(newRow);
+            toggleHapusButton();
+        });
+
+        tbodyInput.addEventListener('change', function (e) {
+            if (e.target.classList.contains('select-kode-item')) {
+                const selectedKode = e.target.value;
+                const currentRow = e.target.closest('tr');
+                const namaInput = currentRow.querySelector('.input-nama-item');
+                const ukuranInput = currentRow.querySelector('.input-ukuran');
+                const matchedItem = itemsData.find(item => item.kode_item === selectedKode);
+
+                if (matchedItem) {
+                    namaInput.value = matchedItem.nama_item;
+                    ukuranInput.value = matchedItem.ukuran;
+                } else {
+                    namaInput.value = '';
+                    ukuranInput.value = '';
+                }
+            }
+        });
+
+        // LOGIKA TOMBOL SIMPAN SPLIT (PEMECKAHAN DAFTAR)
+        btnSimpanSplit.addEventListener('click', function () {
+            const alamat = document.getElementById('input-alamat').value.trim();
+            const penerima = document.getElementById('input-penerima').value.trim();
+            const noHp = document.getElementById('input-no-hp').value.trim();
+
+            if (!alamat || !penerima || !noHp) {
+                alert('Mohon lengkapi Alamat, Penerima, dan No HP.');
+                return;
+            }
+
+            const rows = tbodyInput.querySelectorAll('tr');
+            let selectedItems = [];
+
+            // Validasi dan kumpulkan item dari baris tabel input
+            for (let row of rows) {
+                const kodeItem = row.querySelector('.select-kode-item').value;
+                const namaItem = row.querySelector('.input-nama-item').value;
+                const qty = parseInt(row.querySelector('.input-qty').value) || 0;
+                const ukuran = row.querySelector('.input-ukuran').value;
+
+                if (!kodeItem || qty <= 0) {
+                    alert('Pastikan Kode Item dipilih dan Qty lebih dari 0.');
+                    return;
+                }
+                selectedItems.push({ kode_item: kodeItem, nama_item: namaItem, qty: qty, ukuran: ukuran });
+            }
+
+            // 1. Kurangi Qty di Tabel Atas secara real-time
+            rows.forEach(row => {
+                const kodeItem = row.querySelector('.select-kode-item').value;
+                const qty = parseInt(row.querySelector('.input-qty').value) || 0;
+                reduceUpperTableQty(kodeItem, qty);
+            });
+
+            // 2. Simpan ke data state array
+            const currentDelivery = { alamat, penerima, no_hp: noHp, items: selectedItems };
+            allSplitDeliveries.push(currentDelivery);
+
+            // 3. Render list box baru di bawah (Sesuai SS Desain)
+            renderSplitList();
+
+            // 4. Reset input tabel bawah agar bisa dipakai ketik alamat/item split baru berikutnya
+            resetInputForm();
+        });
+
+        function reduceUpperTableQty(kodeItem, qtyToReduce) {
+            const upperTableRows = document.querySelectorAll('.card-body > .table-responsive:first-of-type tbody tr');
+            upperTableRows.forEach(row => {
+                const kodeUpper = row.querySelector('td:first-child').textContent.trim();
+                const badgeUpper = row.querySelector('td:nth-child(3) .badge');
+                if (kodeUpper === kodeItem && badgeUpper) {
+                    let currentQty = parseInt(badgeUpper.textContent) || 0;
+                    badgeUpper.textContent = Math.max(0, currentQty - qtyToReduce);
+                }
+            });
+        }
+
+        function renderSplitList() {
+            daftarSplitContainer.innerHTML = '';
+            allSplitDeliveries.forEach((delivery, index) => {
+                // Mapping baris item di dalam list pengiriman terpilih
+                let itemRowsHtml = '';
+                delivery.items.forEach(item => {
+                    itemRowsHtml += `
+                    <tr>
+                        <td>${item.kode_item}</td>
+                        <td>${item.nama_item}</td>
+                        <td><span class="badge bg-light text-dark border">${item.qty}</span></td>
+                        <td>${item.ukuran}</td>
+                    </tr>
+                `;
+                });
+
+                // Card list box sesuai mockup pengiriman terpisah
+                const div = document.createElement('div');
+                div.className = 'border rounded-4 p-4 shadow-sm bg-white mb-3 split-card';
+                div.innerHTML = `
+                <div class="row g-3 mb-2">
+                    <div class="col-12"><strong>Alamat :</strong> <span class="text-muted">${delivery.alamat}</span></div>
+                    <div class="col-md-6"><strong>Penerima :</strong> <span class="text-muted text-capitalize">${delivery.penerima}</span></div>
+                    <div class="col-md-6"><strong>No HP :</strong> <span class="text-muted">${delivery.no_hp}</span></div>
+                </div>
+                <div class="table-responsive rounded-3 mt-2">
+                    <table class="table table-sm table-bordered m-0 text-center align-middle bg-light">
+                        <thead>
+                            <tr class="table-secondary text-secondary small">
+                                <th>Kode Item</th><th>Nama Item</th><th>Qty</th><th>Ukuran</th>
+                            </tr>
+                        </thead>
+                        <tbody>${itemRowsHtml}</tbody>
+                    </table>
+                </div>
+                <div class="text-end mt-2">
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0 text-decoration-none btn-batal-split" data-index="${index}">
+                        <i class="bi bi-trash me-1"></i> Batal Pengiriman Ini
+                    </button>
+                </div>
+            `;
+                daftarSplitContainer.appendChild(div);
+            });
+
+            // Tampilkan/Sembunyikan tombol final konfirmasi submit jika ada daftar split
+            if (allSplitDeliveries.length > 0) {
+                finalActionContainer.classList.remove('d-none');
+                // Inject stringified JSON data ke hidden field payload untuk dibaca Backend Django saat tombol submit ditekan
+                payloadSplitOrder.value = JSON.stringify(allSplitDeliveries);
+            } else {
+                finalActionContainer.classList.add('d-none');
+            }
+        }
+
+        // Tombol Batal/Hapus baris pecahan jika user salah input
+        daftarSplitContainer.addEventListener('click', function (e) {
+            const btnBatal = e.target.closest('.btn-batal-split');
+            if (btnBatal) {
+                const index = btnBatal.getAttribute('data-index');
+                const canceledDelivery = allSplitDeliveries[index];
+
+                // Kembalikan angka Qty ke tabel atas sebelum di-delete
+                canceledDelivery.items.forEach(item => {
+                    reduceUpperTableQty(item.kode_item, -item.qty); // Negatif berati menambahkan kembali stoknya
+                });
+
+                allSplitDeliveries.splice(index, 1);
+                renderSplitList();
+            }
+        });
+
+        function resetInputForm() {
+            // Biarkan Alamat, Nama, HP default terisi, atau kosongkan sesuai preferensi Anda
+            tbodyInput.innerHTML = `
+            <tr>
+                <td>
+                    <select class="form-select border-0 text-center bg-transparent select-kode-item" required>
+                        ${getDropdownOptions()}
+                    </select>
+                </td>
+                <td><input type="text" class="form-control border-0 text-center bg-transparent input-nama-item" readonly></td>
+                <td><input type="number" class="form-control border-0 text-center bg-transparent input-qty" min="1" required></td>
+                <td><input type="text" class="form-control border-0 text-center bg-transparent input-ukuran" readonly></td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-light border rounded-circle btn-hapus-row d-none" style="width:28px; height:28px; padding:0;">-</button>
+                </td>
+            </tr>
+        `;
+        }
+
+        tbodyInput.addEventListener('click', function (e) {
+            if (e.target.classList.contains('btn-hapus-row')) {
+                e.target.closest('tr').remove();
+                toggleHapusButton();
+            }
+        });
+
+        function toggleHapusButton() {
+            const rows = tbodyInput.querySelectorAll('tr');
+            rows.forEach((row) => {
+                const btnHapus = row.querySelector('.btn-hapus-row');
+                if (rows.length === 1) {
+                    if (btnHapus) btnHapus.classList.add('d-none');
+                } else {
+                    if (btnHapus) btnHapus.classList.remove('d-none');
+                }
+            });
+        }
+    });
+</script>
+
+{% endblock content %}
