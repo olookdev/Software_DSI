@@ -1,6 +1,5 @@
 {% extends 'inventory/base.html' %}
 {% load humanize %}
-
 {% block page_title %}Dafta Harga{% endblock %}
 
 {% block content %}
@@ -21,8 +20,8 @@
     <div class="tab-pane fade show active" id="harga-stok" role="tabpanel" aria-labelledby="harga-stok-tab">
         <div class="action-bar">
             <div class="controls-group">
-                {% include 'components/info_cards.html' with label="Stok Termahal" value="stiker 1 " %}
-                {% include 'components/info_cards.html' with label="Stok Termurah" value="Stiker 2" %}
+                {% include 'components/info_cards.html' with label="Stok Termahal" value=stok_termahal %}
+                {% include 'components/info_cards.html' with label="Stok Termurah" value=stok_termurah %}
                 {% include 'components/search_bar.html' with placeholder_text="Cari Nama atau Kode Barang........." %}
                 {% include 'components/btn_plus.html' with modal_id="tambahhargastok" %}
             </div>
@@ -61,7 +60,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center">Belum ada data harga dari suplier.</td>
+                            <td colspan="8" class="text-center py-4 text-muted">Belum ada data harga dari suplier atau barang tidak ditemukan.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -73,9 +72,9 @@
     <div class="tab-pane fade" id="harga-jual" role="tabpanel" aria-labelledby="harga-jual-tab">
         <div class="action-bar">
             <div class="controls-group">
-                {% include 'components/info_cards.html' with label="Barang Termahal" value="stiker 1" %}
-                {% include 'components/info_cards.html' with label="Barang Termurah" value="Stiker 2" %}
-                {% include 'components/search_bar.html' with placeholder_text="Cari..." %}
+                {% include 'components/info_cards.html' with label="Barang Termahal" value=produk_termahal %}
+                {% include 'components/info_cards.html' with label="Barang Termurah" value=produk_termurah %}
+                {% include 'components/search_bar.html' with placeholder_text="Cari Nama atau Kode Produk........." %}
                 {% include 'components/btn_plus.html' with modal_id="tambahhargajual" %}
             </div>
             <div class="table-container-shadow">
@@ -95,33 +94,25 @@
                         </tr>
                     </thead>
                     <tbody>
-                    {% for hj in harga_jual_list %}
-                    <tr style="cursor: pointer;" 
-                        id="baris-jual-{{ hj.id }}"
-                        data-id="{{ hj.id }}"
-                        data-nama="{{ hj.nama_produk|escapejs }}"
-                        data-tenaga="{{ hj.biaya_tenaga_kerja }}"
-                        data-listrik="{{ hj.biaya_listrik }}"
-                        data-keterangan="{{ hj.keterangan_produk|escapejs }}"
-                        data-jual="{{ hj.harga_jual_akhir }}"
-                        data-bahan='[
-                            {% for b in hj.list_bahan.all %}
-                            {"id": "{{ b.barang.id }}", "nama": "{{ b.barang.nama_barang|escapejs }}", "harga": "{{ b.harga_stok_terpilih.harga_satuan|floatformat:0 }}"}{% if not forloop.last %},{% endif %}
-                            {% endfor %}
-                        ]'
-                        ondblclick="pemicuModalEditJual(this)">
+                        {% for hj in harga_jual_list %}
+                        <tr style="cursor: pointer;" 
+                            id="baris-jual-{{ hj.id }}"
+                            data-id="{{ hj.id }}"
+                            data-nama="{{ hj.nama_produk|escapejs }}"
+                            data-tenaga="{{ hj.biaya_tenaga_kerja }}"
+                            data-listrik="{{ hj.biaya_listrik }}"
+                            data-keterangan="{{ hj.keterangan_produk|escapejs }}"
+                            data-jual="{{ hj.harga_jual_akhir }}"
+                            data-bahan='[{% for b in hj.list_bahan.all %}{"id": "{{ b.barang.id }}", "nama": "{{ b.barang.nama_barang|escapejs }}", "harga": "{{ b.harga_stok_terpilih.harga_satuan|floatformat:0 }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
+                            ondblclick="pemicuModalEditJual(this)">
                             <td>{{ forloop.counter }}</td>
-                            
                             <td class="fw-bold text-secondary">{{ hj.kode_produk|default:"-" }}</td>
-                            
                             <td><strong>{{ hj.nama_produk }}</strong></td>
-                            
                             <td>
                                 {% for b in hj.list_bahan.all %}
                                     • {{ b.barang.nama_barang }} <span class="text-muted">({{ b.barang.kode_barang }})</span><br>
                                 {% empty %}-{% endfor %}
                             </td>
-                            
                             <td>{{ hj.keterangan_produk|default:"-" }}</td>
                             <td>Rp {{ hj.biaya_tenaga_kerja|floatformat:0|intcomma }}</td>
                             <td>Rp {{ hj.biaya_listrik|floatformat:0|intcomma }}</td>
@@ -140,7 +131,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="10" class="text-center text-muted">Belum ada data harga jual.</td>
+                            <td colspan="10" class="text-center py-4 text-muted">Belum ada data harga jual atau produk tidak ditemukan.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -904,6 +895,58 @@ function bukaModalEdit(idHarga, idBarang, idSuplier, hargaSatuan) {
     const modalStok = new bootstrap.Modal(modalStokElement);
     modalStok.show();
 }
+
+document.addEventListener("DOMContentLoaded", function() {
+    // Cari elemen tag input di dalam komponen search_bar
+    const searchInput = document.querySelector("#harga-search-container input[type='text']");
+    const searchForm = document.getElementById("form-search-harga");
+
+    if (searchInput) {
+        // Kembalikan kata kunci pencarian terakhir ke dalam kotak input agar tidak hilang pasca reload
+        searchInput.value = "{{ query|default:'' }}";
+
+        // Kirim pencarian ke server saat ditekan Enter
+        searchInput.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                searchForm.submit();
+            }
+        });
+
+        // Kirim ulang/reset pencarian otomatis jika teks dihapus kosong melompong
+        searchInput.addEventListener("input", function() {
+            if (this.value === "") {
+                searchForm.submit();
+            }
+        });
+    }
+});
+
+document.addEventListener("DOMContentLoaded", function() {
+    const searchInput = document.querySelector("#jual-search-container input[type='text']");
+    const searchForm = document.getElementById("form-search-jual");
+
+    if (searchInput) {
+        // Set value input dengan pencarian terakhir agar teksnya tidak hilang setelah reload
+        searchInput.name = "search_jual"; // Set atribut name input secara dinamis
+        searchInput.value = "{{ query_jual|default:'' }}";
+
+        // Cari data ketika menekan tombol Enter
+        searchInput.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                searchForm.submit();
+            }
+        });
+
+        // Auto reload table bersih jika user menghapus semua kata di kolom cari
+        searchInput.addEventListener("input", function() {
+            if (this.value === "") {
+                searchForm.submit();
+            }
+        });
+    }
+});
 </script>
 
 {% endblock %}

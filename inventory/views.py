@@ -76,10 +76,7 @@ def list_stok(request):
         )
         messages.success(request, f"Barang {v_nama} berhasil ditambahkan dengan kode {v_kode}!")
         return redirect('list_stok')
-    
-    # =========================================================================
-    # LOGIKA GET (TAB & FILTER LIVE SEARCH)
-    # =========================================================================
+
     tab_aktif = request.GET.get('tab', 'list')
     context = {
         'tab_aktif': tab_aktif,
@@ -90,7 +87,6 @@ def list_stok(request):
         query = request.GET.get('search')
         
         if query:
-            # Menggunakan queryset hasil filter jika user melakukan live search
             stok = List_Stok.objects.filter(
                 Q(nama_barang__icontains=query) | 
                 Q(kode_barang__icontains=query) |
@@ -99,7 +95,6 @@ def list_stok(request):
         else:
             stok = List_Stok.objects.all().select_related('jenis').order_by('id')
             
-        # Pembersihan karakter string untuk javascript data table aman
         for s in stok:
             if s.nama_barang:
                 s.nama_barang = s.nama_barang.replace('\r', '').replace('\n', ' ').replace("'", "\\'")
@@ -108,16 +103,12 @@ def list_stok(request):
             if s.ukuran:
                 s.ukuran = s.ukuran.replace('\r', '').replace('\n', ' ').replace("'", "\\'")
         
-        # --- PERBAIKAN COUNTER INFO CARDS ---
-        # Hitung akumulasi qty dari data queryset 'stok' yang aktif (jika di-search, angka ini ikut menyusut)
         total_qty_data = stok.aggregate(Sum('qty'))['qty__sum']
-        total_stok = int(total_qty_data) if total_qty_data else 0 # Ubah ke int agar tidak desimal di info card
-        
-        # Ambil data barang dengan qty terbanyak berdasarkan filter yang sedang aktif
+        total_stok = int(total_qty_data) if total_qty_data else 0 
         barang_terbanyak = stok.order_by('-qty').first() 
+        
         if barang_terbanyak and barang_terbanyak.qty > 0:
-            # Contoh hasil: "Banner Flexi (150 Pcs)"
-            pemakaian_info = f"{barang_terbanyak.nama_barang} ({barang_terbanyak.qty} {barang_terbanyak.satuan or ''})"
+            pemakaian_info = f"{barang_terbanyak.nama_barang}"
         else:
             pemakaian_info = "-"
             
@@ -361,19 +352,31 @@ def daftar_harga(request):
             harga_satuan=harga
         )
         return redirect('daftar_harga')
+    query = request.GET.get('search', '')
+    
+    data_harga_stok = HargaStok.objects.all().select_related('barang', 'suplier')
 
-    data_harga_stok = HargaStok.objects.all().select_related('barang', 'suplier').order_by('-id')
-
+    if query:
+        data_harga_stok = data_harga_stok.filter(
+            Q(barang__nama_barang__icontains=query) |
+            Q(barang__kode_barang__icontains=query)
+        )
+    
+    data_harga_stok = data_harga_stok.order_by('-id')
+    termahal_obj = HargaStok.objects.all().select_related('barang').order_by('-harga_satuan').first()
+    termurah_obj = HargaStok.objects.all().select_related('barang').order_by('harga_satuan').first()
+    stok_termahal = f"{termahal_obj.barang.nama_barang}" if termahal_obj else "-"
+    stok_termurah = f"{termurah_obj.barang.nama_barang}" if termurah_obj else "-"
     pilihan_barang = List_Stok.objects.all().select_related('jenis').order_by('nama_barang')
     barang_data = []
 
     for barang in pilihan_barang:
         id_angka_barang = int(barang.id)
-        stok_termahal = HargaStok.objects.filter(barang_id=id_angka_barang).order_by('-harga_satuan').first()
+        stok_termahal_item = HargaStok.objects.filter(barang_id=id_angka_barang).order_by('-harga_satuan').first()
 
-        if stok_termahal:
-            harga_termahal = stok_termahal.harga_satuan
-            id_stok = stok_termahal.id
+        if stok_termahal_item:
+            harga_termahal = stok_termahal_item.harga_satuan
+            id_stok = stok_termahal_item.id
         else:
             harga_termahal = 0
             id_stok = None
@@ -393,6 +396,9 @@ def daftar_harga(request):
         'semua_suplier': Suplier.objects.all(),        
         'semua_barang': pilihan_barang, 
         'harga_jual_list': HargaJual.objects.prefetch_related('list_bahan__barang', 'list_bahan__harga_stok_terpilih').all().order_by('id'),
+        'stok_termahal': stok_termahal,
+        'stok_termurah': stok_termurah,
+        'query': query,
     }
     return render(request, 'inventory/daftar_harga.html', context)
 
@@ -417,35 +423,98 @@ def hapus_harga(request, id):
 # =====================harga jual=====================
 def daftar_harga_jual(request):
     if request.method == "POST":
-        v_nama_produk = request.POST.get('nama_produk')
-        v_tenaga = float(request.POST.get('biaya_tenaga') or 0)
-        v_listrik = float(request.POST.get('biaya_listrik') or 0)
-        v_keterangan = request.POST.get('keterangan_produk')
-        v_jual = float(request.POST.get('harga_jual_akhir') or 0)
-        id_bahan_terpilih = request.POST.getlist('bahan_terpilih')
+        if 'nama_produk' in request.POST:
+            v_nama_produk = request.POST.get('nama_produk')
+            v_tenaga = float(request.POST.get('biaya_tenaga') or 0)
+            v_listrik = float(request.POST.get('biaya_listrik') or 0)
+            v_keterangan = request.POST.get('keterangan_produk')
+            v_jual = float(request.POST.get('harga_jual_akhir') or 0)
+            id_bahan_terpilih = request.POST.getlist('bahan_terpilih')
 
-        if v_nama_produk and id_bahan_terpilih:
-            produk_baru = HargaJual.objects.create(
-                nama_produk=v_nama_produk,
-                biaya_tenaga_kerja=v_tenaga,
-                biaya_listrik=v_listrik,
-                keterangan_produk=v_keterangan,
-                harga_jual_akhir=v_jual
-            )
+            if v_nama_produk and id_bahan_terpilih:
+                produk_baru = HargaJual.objects.create(
+                    nama_produk=v_nama_produk,
+                    biaya_tenaga_kerja=v_tenaga,
+                    biaya_listrik=v_listrik,
+                    keterangan_produk=v_keterangan,
+                    harga_jual_akhir=v_jual
+                )
 
-            for barang_id in id_bahan_terpilih:
-                if barang_id: 
-                    stok_termahal = HargaStok.objects.filter(barang_id=barang_id).order_by('-harga_satuan').first()
-                    
-                    if stok_termahal:
-                        HargaJualBahan.objects.create(
-                            harga_jual=produk_baru,
-                            barang_id=barang_id,
-                            harga_stok_terpilih=stok_termahal
-                        )
+                for barang_id in id_bahan_terpilih:
+                    if barang_id: 
+                        stok_termahal = HargaStok.objects.filter(barang_id=barang_id).order_by('-harga_satuan').first()
+                        if stok_termahal:
+                            HargaJualBahan.objects.create(
+                                harga_jual=produk_baru,
+                                barang_id=barang_id,
+                                harga_stok_terpilih=stok_termahal
+                            )
+            return redirect('/daftar_harga/#harga-jual')
+        
+        else:
+            barang_id = request.POST.get('barang')
+            suplier_id = request.POST.get('suplier') 
+            harga = request.POST.get('harga_satuan')
+            HargaStok.objects.create(barang_id=barang_id, suplier_id=suplier_id, harga_satuan=harga)
+            return redirect('daftar_harga')
 
-        return redirect('/daftar_harga/#harga-jual')
-    return redirect('/daftar_harga/#harga-jual')
+    query_jual = request.GET.get('search_jual', '')
+
+    try:
+        harga_jual_query = HargaJual.objects.prefetch_related('list_bahan__barang', 'list_bahan__harga_stok_terpilih').all()
+    except Exception:
+        harga_jual_query = HargaJual.objects.all()
+
+    if query_jual:
+        harga_jual_query = harga_jual_query.filter(
+            Q(nama_produk__icontains=query_jual) |
+            Q(kode_produk__icontains=query_jual)
+        )
+    
+    harga_jual_list = harga_jual_query.order_by('id')
+    jual_termahal_obj = HargaJual.objects.all().order_by('-harga_jual_akhir').first()
+    jual_termurah_obj = HargaJual.objects.all().order_by('harga_jual_akhir').first()
+
+    if jual_termahal_obj and jual_termahal_obj.nama_produk:
+        produk_termahal = f"{jual_termahal_obj.nama_produk} (Rp {int(jual_termahal_obj.harga_jual_akhir):,})"
+    else:
+        produk_termahal = "-"
+
+    if jual_termurah_obj and jual_termurah_obj.nama_produk:
+        produk_termurah = f"{jual_termurah_obj.nama_produk} (Rp {int(jual_termurah_obj.harga_jual_akhir):,})"
+    else:
+        produk_termurah = "-"
+
+    data_harga_stok = HargaStok.objects.all().select_related('barang', 'suplier').order_by('-id')
+    pilihan_barang = List_Stok.objects.all().select_related('jenis').order_by('nama_barang')
+    barang_data = []
+
+    for barang in pilihan_barang:
+        id_angka_barang = int(barang.id)
+        stok_termahal_item = HargaStok.objects.filter(barang_id=id_angka_barang).order_by('-harga_satuan').first()
+        harga_termahal = stok_termahal_item.harga_satuan if stok_termahal_item else 0
+        id_stok = stok_termahal_item.id if stok_termahal_item else None
+
+        barang_data.append({
+            'id': barang.id,
+            'kode_barang': barang.kode_barang,
+            'nama_barang': barang.nama_barang,
+            'keterangan': barang.keterangan or '-',
+            'harga': float(harga_termahal) if harga_termahal else 0,
+            'id_stok': id_stok,
+        })
+
+    context = {
+        'harga_list': data_harga_stok, 
+        'barang_data': barang_data,     
+        'semua_suplier': Suplier.objects.all(),        
+        'semua_barang': pilihan_barang, 
+        'harga_jual_list': harga_jual_list,
+        'produk_termahal': produk_termahal,
+        'produk_termurah': produk_termurah,
+        'query_jual': query_jual,
+    }
+    return render(request, 'inventory/daftar_harga.html', context)
 
 def edit_harga_jual(request):
     if request.method == "POST":
