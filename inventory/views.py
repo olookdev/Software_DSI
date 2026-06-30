@@ -1213,3 +1213,13 @@ def hapus_stok_opname(request, pk):
             
     return redirect('stok_opname')
         
+#=========================pengiriman=======================
+@login_required(login_url='login')
+def pengiriman(request, order_id):
+    order = OrderUtama.objects.prefetch_related("items", "customer").get(id=order_id)
+    items = order.items.all()
+    context = {
+        "order": order,
+        "items": items
+    }
+    return render(request, 'inventory/pengiriman.html', context)
