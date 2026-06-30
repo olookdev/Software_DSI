@@ -11,6 +11,7 @@ from django.utils import timezone
 from decimal import Decimal
 import json
 from decimal import Decimal
+from datetime import datetime
 
 def login_view(request):
 
@@ -1083,14 +1084,15 @@ def hutang(request):
 
 
 #=====================================Transaksi=====================================
-@login_required(login_url='login')
 def transaksi(request):
-    
     if request.method == 'POST':
         tanggal = request.POST.get('tanggal')
         keterangan = request.POST.get('keterangan')
         jenis = request.POST.get('jenis')
         nominal = request.POST.get('nominal')
+        pilihan_bulan = request.POST.get('filter_bulan_aktif', '')
+        start_date_aktif = request.POST.get('filter_start_aktif', '')
+        end_date_aktif = request.POST.get('filter_end_aktif', '')
         
         Transaksi.objects.create(
             tanggal=tanggal,
@@ -1099,13 +1101,53 @@ def transaksi(request):
             nominal=Decimal(nominal)
         )
         
-        return redirect('transaksi')
+        response = redirect('transaksi')
+        if start_date_aktif and end_date_aktif:
+            response['Location'] += f"?bulan_terpilih={pilihan_bulan}&start_date={start_date_aktif}&end_date={end_date_aktif}"
+        return response
+
+    start_date_str = request.GET.get('start_date', '')
+    end_date_str = request.GET.get('end_date', '')
+    query_search = request.GET.get('search', '')
+
+    daftar_transaksi_query = Transaksi.objects.all().order_by('tanggal', 'id')
     
-    daftar_transaksi = Transaksi.objects.all()
+    sisa_minggu_lalu = Decimal(0)
+    total_pemasukan = Decimal(0)
+    total_pengeluaran = Decimal(0)
+    sisa_dana = Decimal(0)
+
+    if start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            
+            daftar_transaksi_query = daftar_transaksi_query.filter(tanggal__range=[start_date, end_date])
+            
+            pemasukan_lalu = Transaksi.objects.filter(tanggal__lt=start_date, jenis='pemasukan').aggregate(total=Sum('nominal'))['total'] or Decimal(0)
+            pengeluaran_lalu = Transaksi.objects.filter(tanggal__lt=start_date, jenis='pengeluaran').aggregate(total=Sum('nominal'))['total'] or Decimal(0)
+            sisa_minggu_lalu = pemasukan_lalu - pengeluaran_lalu
+        except ValueError:
+            pass
+
+    if query_search:
+        daftar_transaksi_query = daftar_transaksi_query.filter(
+            Q(keterangan__icontains=query_search) | Q(jenis__icontains=query_search)
+        )
+
+    total_pemasukan = daftar_transaksi_query.filter(jenis='pemasukan').aggregate(total=Sum('nominal'))['total'] or Decimal(0)
+    total_pengeluaran = daftar_transaksi_query.filter(jenis='pengeluaran').aggregate(total=Sum('nominal'))['total'] or Decimal(0)
+    sisa_dana = sisa_minggu_lalu + total_pemasukan - total_pengeluaran
+
     context = {
-        'daftar_transaksi': daftar_transaksi
+        'daftar_transaksi': daftar_transaksi_query,
+        'sisa_minggu_lalu': sisa_minggu_lalu,
+        'total_pemasukan': total_pemasukan,
+        'total_pengeluaran': total_pengeluaran,
+        'sisa_dana': sisa_dana,
     }
     return render(request, 'inventory/transaksi.html', context)
+
 
 @login_required(login_url='login')
 def hapus_transaksi(request, id):
