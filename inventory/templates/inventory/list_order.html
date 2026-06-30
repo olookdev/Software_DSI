@@ -1,10 +1,6 @@
 {% extends 'inventory/base.html' %}
 
-
-{% block page_title %}
-    List Order
-{% endblock page_title %}
-    
+{% block page_title %}List Order{% endblock page_title %}
 
 {% block content %}
 
@@ -257,9 +253,9 @@
                             <thead>
                                 <tr>
                                     <th>No</th>
-                                    <th>Kode Item</th>
+                                    <th>Kode Produk</th>
+                                    <th>Produk</th>
                                     <th>Nama Item</th>
-                                    <th>Nama Pesanan</th>
                                     <th>Qty</th>
                                     <th>Ukuran (PxL)</th>
                                     <th>Total</th>
@@ -305,9 +301,27 @@
                         </div>
                     </div>
 
-                    <div class="d-flex justify-content-center gap-2 mt-4">
+                   <div class="d-flex justify-content-center gap-2 mt-4">
                         <button type="submit" class="btn-footer-order text-white border-0 py-2 px-4 rounded" style="background-color: #1A6B8D;">Simpan Order</button>
                         <button type="reset" class="btn-footer-order text-white border-0 py-2 px-4 rounded" style="background-color: #8B0000;">Reset</button>
+                        
+                        <a href="#" id="btn-cetak-faktur" target="_blank" class="btn-footer-order text-white text-decoration-none py-2 px-4 rounded d-none align-items-center justify-content-center" style="background-color: #244855;">
+                            <i class="bi bi-file-earmark-text me-1"></i> Faktur
+                        </a>
+
+                        <a href="#" id="btn-cetak-faktur-order" target="_blank" class="btn-footer-order text-white text-decoration-none py-2 px-4 rounded d-none align-items-center justify-content-center" style="background-color: #198754;">
+                            <i class="bi bi-printer me-1"></i> Faktur Order
+                        </a>
+
+                       <a href="/order/spk/{{ order.id }}/" 
+                            id="btn-cetak-spk" 
+                            target="_blank" 
+                            data-order-id="{{ order.id }}"
+                            onclick="catatWaktuCetak(event, this)"
+                            class="btn-footer-order text-white text-decoration-none py-2 px-4 rounded d-flex align-items-center justify-content-center" 
+                            style="background-color: #4A5568;">
+                                <i class="bi bi-file-earmark-clipboard me-1"></i> SPK Order
+                        </a>
                     </div>
                 </form>
             </div>
@@ -460,6 +474,33 @@
 </style>
 
 <script>
+function catatWaktuCetak(event, element) {
+    // 1. Ambil ID Order dan URL tujuan SPK
+    const orderId = element.getAttribute('data-order-id');
+    const urlTujuan = element.getAttribute('href');
+    
+    // Ambil CSRF Token bawaan Django (pastikan ada {% csrf_token %} di halaman tersebut)
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+
+    // 2. Kirim data ke backend menggunakan Fetch API
+    fetch(`/order/update-tgl-cetak/${orderId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ status: 'dicetak' })
+    })
+    .then(response => {
+        if (!response.ok) {
+            console.error('Gagal mencatat waktu cetak ke server.');
+        }
+    })
+    .catch(error => console.error('Error:', error));
+
+    // 3. Biarkan browser tetap membuka link href (tab baru) secara natural
+}
+    
 document.addEventListener("DOMContentLoaded", function() {
         // Find the actual input element inside your component search_bar
         const realSearchInput = document.querySelector("#search-input-field input[type='text']");
@@ -488,6 +529,7 @@ document.addEventListener("DOMContentLoaded", function() {
             });
         }
     });
+
 document.addEventListener("DOMContentLoaded", function () {
     // 1. Inisialisasi Tanggal Default
     const tglInput = document.getElementById('tgl_order_input');
@@ -528,6 +570,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const uangMuka = document.getElementById('uang_muka');
     const sisaPembayaran = document.getElementById('sisa_pembayaran');
     const checkLunas = document.getElementById('check_lunas');
+
+    // DOM Elemen Tombol Cetak Dokumen
+    const btnFaktur = document.getElementById('btn-cetak-faktur');
+    const btnFakturOrder = document.getElementById('btn-cetak-faktur-order');
+    const btnSpk = document.getElementById('btn-cetak-spk');
 
     // =========================================================================
     // FUNGSI UTAMA FORMATTER FORMAT RUPIAH / TITIK RIBUAN
@@ -595,48 +642,38 @@ document.addEventListener("DOMContentLoaded", function () {
         inputProduk.addEventListener('input', function () {
             const val = this.value;
             
-            // 1. Kondisi ketika kasir memilih produk yang valid dari datalist/map
             if (produkDataMap[val]) {
                 const hargaDariDatabase = produkDataMap[val].harga_jual;
 
-                // Masukkan nilai ke Harga Dasar (Readonly) dan berikan format titik
                 if (inputHargaDasar) {
                     inputHargaDasar.value = formatRupiah(hargaDariDatabase); 
                 }
                 
-                // Buat Harga Jual Sekarang default-nya sama dengan Harga Dasar
                 if (inputHargaJual) {
                     inputHargaJual.value = formatRupiah(hargaDariDatabase);
                 }
                 
-                // Isi otomatis Kode Bahan dan Nama Bahan dari database HargaJual
                 inputKodeBahan.value = produkDataMap[val].kode || "PRD";
                 inputNamaBahan.value = produkDataMap[val].nama;
                 
-                // Jalankan kalkulator per item secara otomatis
                 hitungItemIni();
                 return;
             }
             if (val.length < 1) return;
 
-            // 2. AJAX memanggil data asli dari view Django (api_cari_produk)
             fetch(`/api/cari-produk/?q=${encodeURIComponent(val)}`)
                 .then(res => res.json())
                 .then(data => {
-                    listProd.innerHTML = ""; // Bersihkan pilihan lama
+                    listProd.innerHTML = ""; 
                     
-                    // Membaca array hasil dari database
                     data.results.forEach(item => {
                         const opt = document.createElement('option');
-                        // Tampilkan nama produk di dalam datalist dropdown
                         opt.value = item.nama_produk; 
                         listProd.appendChild(opt);
                         
-                        // SIMPAN DATA ASLI DATABASE KE MAP JAVASCRIPT
-                        // Pastikan nama properti (item.kolom_db) sesuai dengan JSON dari Django
                         produkDataMap[item.nama_produk] = {
                             nama: item.nama_produk,
-                            harga_jual: item.harga_jual, // Mengambil nominal asli dari tabel HargaJual
+                            harga_jual: item.harga_jual, 
                             kode: item.kode_barang || item.kode_produk
                         };
                     });
@@ -733,15 +770,11 @@ document.addEventListener("DOMContentLoaded", function () {
             grandTotalQty += item.qty;
 
             const tr = document.createElement('tr');
-            // PERBAIKAN DI SINI: Tambahkan class 'text-start' untuk memaksa rata kiri 
-            // dan hilangkan margin/padding yang tidak seimbang
             tr.className = "align-middle item-row-select text-start";
             tr.style.cursor = "pointer";
             tr.setAttribute('data-index', index);
             tr.title = "Klik 1x untuk melihat/menandai, Klik 2x untuk edit data";
 
-            // PERBAIKAN DI SINI: Tambahkan class 'text-start' pada tiap <td> 
-            // agar posisinya sejajar sempurna dengan header (<th>) di atasnya
             tr.innerHTML = `
                 <td class="text-start" style="padding-left: 8px;">${index + 1}</td>
                 <td class="text-start">${item.kode_item}</td>
@@ -791,7 +824,6 @@ document.addEventListener("DOMContentLoaded", function () {
             btnTambahItem.classList.add('btn-primary');
         }
 
-        // BARU: Hilangkan semua warna sorotan aktif jika form input di-reset
         document.querySelectorAll('#tabel_order_item tbody tr').forEach(row => {
             row.style.backgroundColor = "";
             row.classList.remove('fw-bold');
@@ -802,24 +834,19 @@ document.addEventListener("DOMContentLoaded", function () {
     // EVENT LISTENER: CLICK (SOROT BARIS), DOUBLE CLICK, & HAPUS BARIS
     // =========================================================================
     if (tbodyTabel) {
-        // 1. Deteksi Klik 1x untuk MENGUBAH WARNA LATAR BELAKANG BARIS
         tbodyTabel.addEventListener('click', function (e) {
             const tr = e.target.closest('tr.item-row-select');
-            // Jika yang diklik adalah tombol hapus (X), abaikan pewarnaan
             if (!tr || e.target.classList.contains('btn-hapus')) return;
 
-            // Bersihkan warna latar belakang semua baris ke normal terlebih dahulu
             document.querySelectorAll('#tabel_order_item tbody tr').forEach(row => {
-                row.style.backgroundColor = ""; // Kembali ke warna default tabel
+                row.style.backgroundColor = ""; 
                 row.classList.remove('fw-bold');
             });
 
-            // BERUBAH DI SINI: Berikan warna latar belakang kuning lembut secara solid pada baris yang diklik
-            tr.style.backgroundColor = "#fff3cd"; // Warna kuning khas Bootstrap (Warning)
-            tr.classList.add('fw-bold'); // Opsional: teks ditebalkan agar makin jelas dilihat
+            tr.style.backgroundColor = "#fff3cd"; 
+            tr.classList.add('fw-bold');
         });
 
-        // 2. Deteksi Double Click pada baris untuk melempar data kembali ke form input
         tbodyTabel.addEventListener('dblclick', function (e) {
             const tr = e.target.closest('tr.item-row-select');
             if (!tr) return;
@@ -830,27 +857,21 @@ document.addEventListener("DOMContentLoaded", function () {
             if (targetData) {
                 indexItemDiedit = index;
 
-                // === PERBAIKAN DI SINI ===
-                // Coba cek apakah ID input Anda adalah 'input_nama_item', 'input_nama_order', atau 'input_nama_pesanan'
-                // Di bawah ini kita amankan dengan memeriksa alternatif ID yang sering digunakan
                 const inputNamaItem = document.getElementById('input_nama_item') || 
                                       document.getElementById('input_nama_order') || 
                                       document.getElementById('input_nama_pesanan');
                                       
                 if (inputNamaItem) {
-                    inputNamaItem.value = targetData.nama_pesanan; // Mengisi Nama Cetakan/Job (ex: Banner Warung Pecel)
+                    inputNamaItem.value = targetData.nama_pesanan; 
                 }
                 
-                // Mengisi input produk utama (ex: BANNER OUTDOOR)
                 if (inputProduk) inputProduk.value = targetData.nama_item; 
                 
-                // Mengisi data ukuran dan quantity
                 if (inputQty) inputQty.value = targetData.qty;
                 if (inputP) inputP.value = targetData.panjang;
                 if (inputL) inputL.value = targetData.lebar;
                 if (inputLuas) inputLuas.value = (targetData.panjang * targetData.lebar).toFixed(2);
                 
-                // Mengisi data finansial bahan
                 if (inputHargaDasar) inputHargaDasar.value = formatRupiah(targetData.harga_dasar);
                 if (inputHargaJual) inputHargaJual.value = formatRupiah(targetData.harga_jual);
                 if (inputKodeBahan) inputKodeBahan.value = targetData.kode_item;
@@ -862,14 +883,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 const inputKeteranganItem = document.getElementById('input_keterangan_item');
                 if (inputKeteranganItem) inputKeteranganItem.value = targetData.keterangan || "";
 
-                // Mengubah tombol menjadi mode edit/simpan perubahan
                 if (btnTambahItem) {
                     btnTambahItem.innerText = "Simpan Perubahan";
                     btnTambahItem.classList.remove('btn-primary');
                     btnTambahItem.classList.add('btn-warning'); 
                 }
 
-                // Berikan warna highlight kuning pada baris yang sedang diedit
                 document.querySelectorAll('#tabel_order_item tbody tr').forEach(row => {
                     row.style.backgroundColor = "";
                     row.classList.remove('fw-bold');
@@ -879,7 +898,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
 
-        // 3. Event Hapus Baris Tabel
         tbodyTabel.addEventListener('click', function (e) {
             if (e.target.classList.contains('btn-hapus')) {
                 const index = e.target.getAttribute('data-index');
@@ -929,13 +947,11 @@ document.addEventListener("DOMContentLoaded", function () {
     // =========================================================================
     // F. GENERATE OTOMATIS NO ORDER (HANYA UNTUK TAMBAH BARU)
     // =========================================================================
-    // Buat variabel flag di luar untuk menandai mode form
     let isEditMode = false; 
 
     const myModalEl = document.getElementById('tambahOrderModal'); 
     if (myModalEl) {
         myModalEl.addEventListener('show.bs.modal', function (event) {
-            // JIKA SEDANG EDIT MODE, JANGAN MINTA NOMOR BARU KEMBALI!
             if (isEditMode) return; 
 
             const inputNoOrder = document.getElementById('modal_no_order');
@@ -956,7 +972,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================================
-    // DETEKSI KLIK BARIS TABEL UTAMA UNTUK EDIT MODAL
+    // DETEKSI KLIK BARIS TABEL UTAMA UNTUK EDIT/DETAIL MODAL
     // =========================================================================
     const tabelUtamaOrder = document.getElementById('tabel_utama_order');
     const selectStatusModal = document.querySelector('#tambahOrderModal select[name="status"]'); 
@@ -965,11 +981,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (tabelUtamaOrder) {
         tabelUtamaOrder.addEventListener('click', function (e) {
-            // Pastikan mengarah ke TR baris order walaupun yang diklik adalah badge span di dalamnya
             const tr = e.target.closest('.baris-order');
             if (!tr) return;
 
-            // SET FLAG EDIT MODE MENJADI TRUE SEBELUM MODAL DI-SHOW
             isEditMode = true; 
 
             // 1. Ambil data dari atribut HTML
@@ -988,10 +1002,24 @@ document.addEventListener("DOMContentLoaded", function () {
             const sisaBayarVal = tr.getAttribute('data-sisa-bayar');
             const keterangan = tr.getAttribute('data-keterangan');
 
+            // ================================================================
+            // LOGIKA UTAMA SUNTIKAN: SET LINK & TAMPILKAN TOMBOL CETAK
+            // ================================================================
+            if (idOrder && btnFaktur && btnFakturOrder && btnSpk) {
+                btnFaktur.href = `/order/faktur/${idOrder}/`;
+                btnFakturOrder.href = `/order/faktur-order/${idOrder}/`;
+                btnSpk.href = `/order/spk/${idOrder}/`;
+
+                // Buang d-none dan tampilkan tombol cetak
+                [btnFaktur, btnFakturOrder, btnSpk].forEach(btn => {
+                    btn.classList.remove('d-none');
+                    btn.classList.add('d-inline-flex');
+                });
+            }
+
             // 2. Isi data utama ke Form Sisi Kiri Modal
             const modalNoOrder = document.getElementById('modal_no_order');
             if (modalNoOrder) modalNoOrder.value = noOrder;
-            
             if (tglInput) tglInput.value = tglOrder;
             
             const hiddenCust = document.getElementById('id_customer_hidden');
@@ -1061,11 +1089,10 @@ document.addEventListener("DOMContentLoaded", function () {
                         keterangan: item.keterangan || ""
                     }));
                     
-                    renderTabelItem(); // Gambar tabel di kanan modal
+                    renderTabelItem(); 
 
-                    // === TAMBAHKAN KODE INI AGAR ITEM PERTAMA LANGSUNG MASUK KE FORM INPUT ===
                     if (orderItemsArray.length > 0) {
-                        indexItemDiedit = 0; // Set sedang mengedit item indeks ke-0
+                        indexItemDiedit = 0; 
                         const itemPertama = orderItemsArray[0];
 
                         const inputNamaItem = document.getElementById('input_nama_item');
@@ -1105,11 +1132,11 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // RESET FORM SAAT MODAL DITUTUP
+    // RESET FORM DAN SEMBUNYIKAN TOMBOL CETAK SAAT MODAL DITUTUP
     const modalTambahEl = document.getElementById('tambahOrderModal');
     if (modalTambahEl) {
         modalTambahEl.addEventListener('hidden.bs.modal', function () {
-            isEditMode = false; // KEMBALIKAN FLAG KE FALSE SAAT MODAL DITUTUP
+            isEditMode = false; 
             if (formOrderUtama) formOrderUtama.action = "/order/tambah/"; 
             if (btnSimpanOrder) {
                 btnSimpanOrder.innerText = "Simpan Order";
@@ -1117,6 +1144,15 @@ document.addEventListener("DOMContentLoaded", function () {
             }
             if (selectStatusModal) selectStatusModal.removeAttribute('disabled');
             
+            // Sembunyikan kembali tombol cetak saat modal ditutup / tambah baru
+            if (btnFaktur && btnFakturOrder && btnSpk) {
+                [btnFaktur, btnFakturOrder, btnSpk].forEach(btn => {
+                    btn.classList.remove('d-inline-flex');
+                    btn.classList.add('d-none');
+                    btn.href = "#";
+                });
+            }
+
             orderItemsArray = [];
             resetInputItemSisiKanan();
             renderTabelItem();

@@ -1324,3 +1324,26 @@ def hapus_stok_opname(request, pk):
             
     return redirect('stok_opname')
         
+
+#====================faktur=======================
+def cetak_faktur_view(request, order_id):
+    return render(request, 'pages/cetak_faktur.html')
+
+
+@login_required
+def cetak_faktur_order_view(request, order_id):
+    return render(request, 'pages/cetak_faktur_order.html')
+
+
+#===========================spk==============================
+def detail_spk(request, order_id):
+    order_obj = get_object_or_404(OrderUtama, id=order_id)
+
+    context = {
+        'order': order_obj, 
+        'tgl_cetak_sekarang': timezone.now()
+    }
+    return render(request, 'inventory/spk_detail.html', context)
+
+def update_tgl_cetak(request, order_id):
+    return JsonResponse({'status': 'success', 'message': 'Waktu cetak berhasil diperbarui'})
