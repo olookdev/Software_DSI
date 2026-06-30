@@ -7,7 +7,7 @@ from inventory.views import (
     tambah_jenis, hapus_stok, edit_harga_stok, tambah_arus_stok, log_arus_stok,
     edit_arus_stok, hapus_arus_stok, hapus_customer, hapus_suplier,  list_order, cari_customer, tambah_order,
     kode_order, cari_produk, get_order_items, edit_order, bayar_cicilan, ambil_harga_satuan, transaksi, hapus_transaksi, hutang,
-    home, stok_opname, hapus_stok_opname
+    home, stok_opname, hapus_stok_opname, pengiriman
 )
 
 urlpatterns = [
@@ -79,4 +79,7 @@ urlpatterns = [
     #transaksi
     path('transaksi', transaksi, name="transaksi"),
     path('transaksi/hapus/<int:id>/', hapus_transaksi, name='hapus_transaksi'),
+    
+    #pengiriman
+    path('pengiriman/<int:order_id>', pengiriman, name="pengiriman")
 ]
