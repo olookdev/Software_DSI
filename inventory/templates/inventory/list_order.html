@@ -305,10 +305,19 @@
                         </div>
                     </div>
 
-                    <div class="d-flex justify-content-center gap-2 mt-4">
-                        <button type="submit" class="btn-footer-order text-white border-0 py-2 px-4 rounded" style="background-color: #1A6B8D;">Simpan Order</button>
-                        <button type="reset" class="btn-footer-order text-white border-0 py-2 px-4 rounded" style="background-color: #8B0000;">Reset</button>
+                    <div class="d-flex justify-content-center align-items-center gap-2 mt-4">
+                        <a href="#" id="btn_ke_pengiriman" class="btn-footer-order text-white py-2 px-4 rounded d-none"
+                            style="background-color: #E67E22; text-decoration: none">
+                            Pengiriman
+                        </a>
+                    
+                        <button type="submit" class="btn-footer-order text-white border-0 py-2 px-4 rounded"
+                            style="background-color: #1A6B8D;">Simpan Order
+                        </button>
+                        <button type="reset" class="btn-footer-order text-white border-0 py-2 px-4 rounded"
+                            style="background-color: #8B0000;">Reset</button>
                     </div>
+                    
                 </form>
             </div>
         </div>
@@ -988,6 +997,14 @@ document.addEventListener("DOMContentLoaded", function () {
             const sisaBayarVal = tr.getAttribute('data-sisa-bayar');
             const keterangan = tr.getAttribute('data-keterangan');
 
+            const btnKePengiriman = document.getElementById('btn_ke_pengiriman');
+            if (btnKePengiriman) {
+                // Ubah url tujuan ke page pengiriman Django dengan membawa ID order terkait
+                btnKePengiriman.href = `/pengiriman/${idOrder}`;
+                // Munculkan tombolnya dengan menghapus class bootstrap 'd-none'
+                btnKePengiriman.classList.remove('d-none');
+            }
+
             // 2. Isi data utama ke Form Sisi Kiri Modal
             const modalNoOrder = document.getElementById('modal_no_order');
             if (modalNoOrder) modalNoOrder.value = noOrder;
@@ -1110,7 +1127,12 @@ document.addEventListener("DOMContentLoaded", function () {
     if (modalTambahEl) {
         modalTambahEl.addEventListener('hidden.bs.modal', function () {
             isEditMode = false; // KEMBALIKAN FLAG KE FALSE SAAT MODAL DITUTUP
-            if (formOrderUtama) formOrderUtama.action = "/order/tambah/"; 
+            if (formOrderUtama) formOrderUtama.action = "/order/tambah/";
+            const btnKePengiriman = document.getElementById('btn_ke_pengiriman');
+            if (btnKePengiriman) {
+                btnKePengiriman.classList.add('d-none');
+                btnKePengiriman.href = "#";
+            } 
             if (btnSimpanOrder) {
                 btnSimpanOrder.innerText = "Simpan Order";
                 btnSimpanOrder.removeAttribute('disabled');
