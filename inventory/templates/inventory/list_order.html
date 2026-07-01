@@ -1163,5 +1163,14 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 });
+
+if (sisaBayar == 0) {
+    // Jika sudah lunas, munculkan tombol Faktur dan arahkan ke view faktur_lunas
+    $('#btn-cetak-faktur').removeClass('d-none').addClass('d-flex');
+    $('#btn-cetak-faktur').attr('href', '/order/faktur-lunas/' + orderId + '/');
+} else {
+    // Jika belum lunas, sembunyikan tombol faktur lunas
+    $('#btn-cetak-faktur').removeClass('d-flex').addClass('d-none');
+}
 </script>
 {% endblock %}

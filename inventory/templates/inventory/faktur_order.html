@@ -172,7 +172,9 @@
 </head>
 <body>
     <div class="no-print-area">
-        <button class="btn btn-print" onclick="window.print();">🖨️ Print SPK</button>
+        <button class="btn btn-print" onclick="window.print();">
+            🖨️ Print {% if is_faktur_lunas %}Faktur {% else %}Faktur Order{% endif %}
+        </button>
     </div>
 
     <div class="spk-paper">
@@ -189,7 +191,15 @@
                     </p>
                 </td>
                 <td class="right-header">
-                    <div class="spk-title">SPK Order</div>
+                    
+                    <div class="spk-title">
+                        {% if is_faktur_lunas %}
+                            Faktur 
+                        {% else %}
+                            Faktur Order
+                        {% endif %}
+                    </div>
+                    
                     <div class="tgl-cetak">
                         Tgl. Cetak : <span id="tgl-cetak-isi">{{ tgl_cetak_sekarang|date:"H:i, d-m-Y" }}</span>
                     </div>

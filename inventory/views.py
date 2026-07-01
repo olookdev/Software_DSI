@@ -1338,9 +1338,26 @@ def hapus_stok_opname(request, pk):
         
 
 #====================faktur=======================
-def cetak_faktur_view(request, order_id):
-    return render(request, 'pages/cetak_faktur.html')
-
+def faktur_lunas(request, order_id):
+    # 1. Ambil data order utama
+    order_obj = get_object_or_404(OrderUtama, id=order_id)
+    
+    # 2. VALIDASI: Jika sisa bayar masih lebih besar dari 0, blokir akses
+    if order_obj.sisa_bayar > 0:
+        messages.error(
+            request, 
+            f"Gagal membuka Faktur! Order {order_obj.no_order} belum lunas. "
+            f"Sisa kekurangan masih Rp {int(order_obj.sisa_bayar):,}".replace(',', '.')
+        )
+        return redirect('list_order') # Kembalikan ke halaman list order
+        
+    # 3. Jika lolos validasi (Sisa Bayar == 0), tampilkan template faktur yang sama
+    context = {
+        'order': order_obj,
+        'tgl_cetak_sekarang': timezone.now(),
+        'is_faktur_lunas': True # Penanda di HTML jika sewaktu-waktu butuh membedakan judul nota
+    }
+    return render(request, 'inventory/faktur_order.html', context)
 
 #===================faktur order=====================
 def faktur_order(request, order_id):
