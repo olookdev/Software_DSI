@@ -309,11 +309,15 @@
                             <i class="bi bi-file-earmark-text me-1"></i> Faktur
                         </a>
 
-                        <a href="#" id="btn-cetak-faktur-order" target="_blank" class="btn-footer-order text-white text-decoration-none py-2 px-4 rounded d-none align-items-center justify-content-center" style="background-color: #198754;">
-                            <i class="bi bi-printer me-1"></i> Faktur Order
+                        <a href="/order/faktur/{{ order.id }}/" 
+                            id="btn-cetak-faktur-order" 
+                            target="_blank" 
+                            class="btn-footer-order text-white text-decoration-none py-2 px-4 rounded d-flex align-items-center justify-content-center" 
+                            style="background-color: #198754;">
+                                <i class="bi bi-printer me-1"></i> Faktur Order
                         </a>
 
-                       <a href="/order/spk/{{ order.id }}/" 
+                       <a href="/order/spk/{{ order.id }}/"  
                             id="btn-cetak-spk" 
                             target="_blank" 
                             data-order-id="{{ order.id }}"

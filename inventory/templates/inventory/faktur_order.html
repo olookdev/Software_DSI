@@ -1,0 +1,318 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPK Order - Digital Studio Indonesia</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 20px;
+            color: #000000;
+            font-size: 13px;
+        }
+
+        .no-print-area {
+            max-width: 950px;
+            margin: 0 auto 15px auto;
+            display: flex;
+            justify-content: space-between;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .btn-kembali { background-color: #6b7280; color: white; border: none; }
+        .btn-print { background-color: #f97316; color: white; border: none; }
+
+        /* --- Container Utama Mengikuti image_63dd82.png --- */
+        .spk-paper {
+            max-width: 950px;
+            height: 750px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 25px 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* --- Kop Surat / Header --- */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+        }
+        .logo-area {
+            width: 15%;
+            vertical-align: middle;
+        }
+        .logo-placeholder {
+            font-weight: bold;
+            font-style: italic;
+            font-size: 24px;
+            color: #4b5563;
+            line-height: 1;
+        }
+        .logo-subtext {
+            font-size: 9px;
+            display: block;
+            margin-top: -2px;
+        }
+        .company-info {
+            width: 55%;
+            vertical-align: middle;
+            padding-left: 10px;
+        }
+        .company-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #f97316; /* Warna orange tipis khas Digital Studio */
+            margin: 0 0 2px 0;
+        }
+        .company-details {
+            font-size: 11px;
+            color: #000000;
+            margin: 0;
+            line-height: 1.3;
+        }
+        .right-header {
+            width: 30%;
+            text-align: right;
+            vertical-align: top;
+        }
+        .spk-title {
+            font-size: 15px;
+            font-weight: bold;
+            margin: 0 0 15px 0;
+        }
+        .tgl-cetak {
+            font-size: 11px;
+        }
+
+        /* --- Blok Informasi Data Batas Atas (Customer, No Order, dll) --- */
+        .info-section {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .info-section td {
+            padding: 3px 0;
+            vertical-align: top;
+        }
+        .label-bold {
+            font-weight: bold;
+            width: 80px;
+        }
+        
+        /* --- Tabel Item Pekerjaan --- */
+        .main-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .main-table th {
+            font-weight: bold;
+            text-align: left;
+            padding: 5px 0;
+            border-top: 1px solid #000000;
+            border-bottom: 1px solid #000000;
+            font-size: 12px;
+        }
+        /* Garis ganda tipis di header sesuai gambar */
+        .border-double-bottom {
+            border-bottom: 3px double #000000 !important;
+        }
+        .main-table td {
+            padding: 8px 0;
+            vertical-align: top;
+            line-height: 1.4;
+        }
+        .item-details {
+            margin-top: 2px;
+            font-size: 11px;
+            color: #000000;
+        }
+
+        /* --- Bagian Petugas / Footer Tanda Tangan --- */
+        .footer-section {
+            width: 100%;
+            margin-top: 60px;
+            border-top: 1px solid #000000;
+            padding-top: 15px;
+        }
+        .petugas-box {
+            text-align: right;
+            padding-right: 150px;
+            font-size: 12px;
+        }
+
+        @media print {
+            body {
+                background-color: #ffffff;
+                padding: 0;
+                margin: 0;
+            }
+            .spk-paper {
+                box-shadow: none;
+                padding: 0;
+                max-width: 100%;
+            }
+            .no-print-area {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print-area">
+        <button class="btn btn-print" onclick="window.print();">🖨️ Print SPK</button>
+    </div>
+
+    <div class="spk-paper">
+        <table class="header-table">
+            <tr>
+                <td class="logo-area" style="width: 70px; padding-right: 15px;">
+                    <img src="/static/images/logo_kecil.png" alt="Logo DSI" style="height: 55px; width: auto; object-fit: contain;">
+                </td>
+                <td class="company-info">
+                    <h1 class="company-name">Digital Studio Indonesia</h1>
+                    <p class="company-details" style="margin-top: 5px;">
+                        Jl. Asirot No.4 Sukabumi Selatan, Kebon Jeruk, Jakarta Barat - 11560<br>
+                        Tlp : 0821 2089 9766 Email: digitalstudioindo@gmail.com
+                    </p>
+                </td>
+                <td class="right-header">
+                    <div class="spk-title">SPK Order</div>
+                    <div class="tgl-cetak">
+                        Tgl. Cetak : <span id="tgl-cetak-isi">{{ tgl_cetak_sekarang|date:"H:i, d-m-Y" }}</span>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        
+        <hr>
+
+        <table class="info-section">
+            <tr>
+                <td class="label-bold" style="width: 10%;">Customer</td>
+                <td style="width: 40%;">: {{ order.customer }}</td>
+                
+                <td class="label-bold" style="width: 13%;">No. Order</td>
+                <td style="width: 20%;">: {{ order.no_order }}</td>
+                <td class="label-bold" style="width: 10%;">Karyawan</td>
+                <td style="width: 7%;">: SALMA </td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td class="label-bold">Tanggal</td>
+                <td>: {{ order.tgl_order|date:"d M Y" }}</td>
+                <td></td>
+                <td></td>
+            </tr>
+        </table>
+
+        <table class="main-table">
+            <thead>
+                <tr>
+                    <th class="border-double-bottom" style="width: 5%; text-align: center;">No.</th>
+                    <th class="border-double-bottom" style="width: 15%;">Kode Produk</th>
+                    <th class="border-double-bottom" style="width: 30%;">Produk</th>
+                    <th class="border-double-bottom" style="width: 25%;">Nama Item</th>
+                    <th class="border-double-bottom" style="width: 10%;">Qty</th>
+                    <th class="border-double-bottom" style="width: 15%;">Ukuran</th>
+                    <th class="border-double-bottom" style="width: 15%;">SubTotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items.all %}
+                <tr>
+                    <td style="text-align: center;">{{ forloop.counter }}</td>
+                    <td>{{ item.kode_item}}</td>
+                    <td>{{ item.nama_item }}
+                    </td>
+                    <td>{{ item.produk.nama|default:item.nama_pesanan }}</td>
+                    <td>{{ item.qty }}</td>
+                    <td>{{ item.panjang }} x {{ item.lebar }}</td>
+                    <td>{{ item.total|floatformat:"0"|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: #9ca3af; padding: 20px;">
+                        Belum ada item pekerjaan untuk order ini.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <table class="footer-grid" style="width: 100%; margin-top: 20px; border-top: 1px solid #000000; padding-top: 10px;">
+            <tr>
+                <td class="terbilang-box" style="font-style: italic; font-weight: bold; text-transform: uppercase; font-size: 11px; width: 50%; vertical-align: top; padding-top: 5px; padding-right: 15px; line-height: 1.4;">
+                    # SATU JUTA TIGA RATUS TIGA PULUH DUA RIBU TUJUH RATUS LIMA PULUH RUPIAH #
+                </td>
+                
+                <td class="summary-box" style="width: 50%; vertical-align: top;">
+                   <table class="summary-table" style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: left; width: 60%; padding: 4px 0;">Total Transaksi</td>
+                            <td style="text-align: right; width: 40%; padding: 4px 0;">
+                                Rp {{ order.total_harga|floatformat:"0"|intcomma }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: left; padding: 4px 0;">Uang Muka (DP)</td>
+                            <td style="text-align: right; padding: 4px 0;">
+                                Rp {{ order.uang_muka|floatformat:"0"|intcomma }}
+                            </td>
+                        </tr>
+                        <tr style="font-weight: bold; border-top: 1px dashed #000000;">
+                            <td style="text-align: left; padding-top: 8px;">Sisa / Kekurangan</td>
+                            <td style="text-align: right; padding-top: 8px; color: #b91c1c;">
+                                Rp {{ order.sisa_bayar|floatformat:"0"|intcomma }}
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <div class="signature-section">
+            <div class="sig-block">
+                <p style="margin: 0;">Penerima</p>
+                <div class="sig-space"></div>
+            </div>
+            <div class="sig-block">
+                <p style="margin: 0;">Petugas</p>
+                <div class="sig-space"></div>
+            </div>
+        </div>
+
+        <div class="note-periksa">
+            Periksa data sebelum dicetak, kesalahan data bukan tanggung jawab kami, Terima Kasih.<br>
+            <strong>No Rek BCA 57106 95999 An YUSTINA SUNARDIATI</strong>
+        </div>
+
+    </div>
+
+    <script>
+    function cetakFaktur() {
+        const hariIni = new Date();
+        const jam = String(hariIni.getHours()).padStart(2, '0');
+        const menit = String(hariIni.getMinutes()).padStart(2, '0');
+        const dd = String(hariIni.getDate()).padStart(2, '0');
+        const mm = String(hariIni.getMonth() + 1).padStart(2, '0');
+        const yyyy = hariIni.getFullYear();
+        
+        document.getElementById('tgl-cetak-isi').innerText = `${jam}:${menit}, ${dd}-${mm}-${yyyy}`;
+        window.print();
+    }
+    </script>
+</body>
+</html>

@@ -945,13 +945,28 @@ def edit_order(request, order_id):
             customer_id = request.POST.get('id_customer_hidden')
             nama_order = request.POST.get('nama_order_utama') 
             status = request.POST.get('status')
-            keterangan = request.POST.get('keterangan_utama') 
+            keterangan = request.POST.get('keterangan_utama') #
             total_harga = float(request.POST.get('total_harga_all', '0').replace('.', '').replace(',', '.'))
             uang_muka = float(request.POST.get('uang_muka', '0').replace('.', '').replace(',', '.'))
-            sisa_bayar = total_harga - uang_muka
             
+            items_json_data = request.POST.get('items_json')
+            total_kalkulasi_json = 0.0
+            
+            if items_json_data:
+                items_list = json.loads(items_json_data)
+                for item in items_list:
+                    total_kalkulasi_json += float(item.get('total', 0))
+            
+            if total_harga == 0 and total_kalkulasi_json > 0:
+                total_harga = total_kalkulasi_json
+            
+            sisa_bayar = total_harga - uang_muka
+        
             if customer_id:
                 order_utama.customer = get_object_or_404(Customer, id=customer_id)
+            
+            if nama_order:
+                order_utama.nama_order = nama_order
             
             order_utama.status = status
             order_utama.total_harga = total_harga
@@ -962,11 +977,8 @@ def edit_order(request, order_id):
                 
             order_utama.save() 
             
-            items_json_data = request.POST.get('items_json')
             if items_json_data:
-                items_list = json.loads(items_json_data)
                 OrderDetail.objects.filter(order_utama=order_utama).delete()
-                
                 for item in items_list:
                     OrderDetail.objects.create(
                         order_utama=order_utama,
@@ -985,7 +997,7 @@ def edit_order(request, order_id):
                     )
             
             messages.success(request, f"Order {order_utama.no_order} berhasil diperbarui!")
-            return redirect('/order/') 
+            return redirect('/order/')
             
         except Exception as e:
             messages.error(request, f"Gagal memperbarui order: {str(e)}")
@@ -1330,10 +1342,15 @@ def cetak_faktur_view(request, order_id):
     return render(request, 'pages/cetak_faktur.html')
 
 
-@login_required
-def cetak_faktur_order_view(request, order_id):
-    return render(request, 'pages/cetak_faktur_order.html')
-
+#===================faktur order=====================
+def faktur_order(request, order_id):
+    order_obj = get_object_or_404(OrderUtama, id=order_id)
+    
+    context = {
+        'order': order_obj,
+        'tgl_cetak_sekarang': timezone.now()
+    }
+    return render(request, 'inventory/faktur_order.html', context)
 
 #===========================spk==============================
 def detail_spk(request, order_id):
