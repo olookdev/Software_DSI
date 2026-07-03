@@ -7,7 +7,7 @@ from inventory.views import (
     tambah_jenis, hapus_stok, edit_harga_stok, tambah_arus_stok, log_arus_stok,
     edit_arus_stok, hapus_arus_stok, hapus_customer, hapus_suplier,  list_order, cari_customer, tambah_order,
     kode_order, cari_produk, get_order_items, edit_order, bayar_cicilan, ambil_harga_satuan, transaksi, hapus_transaksi, hutang,
-    home, stok_opname, hapus_stok_opname, pengiriman
+    home, stok_opname, hapus_stok_opname, update_tgl_cetak, detail_spk, faktur_order, faktur_lunas, pengiriman
 )
 
 urlpatterns = [
@@ -71,6 +71,8 @@ urlpatterns = [
     path('api/cari-produk/', cari_produk, name='api_cari_produk'),
     path('api/get-order-items/<int:order_id>/', get_order_items, name='get_order_items'),
     path('order/edit/<int:order_id>/', edit_order, name='edit_order_utama'),
+    path('order/edit/<int:order_id>/', edit_order, name='edit_order'),
+    
 
     #piutang
     path('piutang/', piutang, name='piutang'),
@@ -79,7 +81,16 @@ urlpatterns = [
     #transaksi
     path('transaksi', transaksi, name="transaksi"),
     path('transaksi/hapus/<int:id>/', hapus_transaksi, name='hapus_transaksi'),
-    
+
+    # faktur order
+    path('order/faktur-order/<int:order_id>/', faktur_order, name='faktur_order'),
+    path('order/update-tgl-cetak/<int:order_id>/', update_tgl_cetak, name='update_tgl_cetak'),
+
+    # Faktur 
+    path('order/faktur/<int:order_id>/', faktur_lunas, name='faktur_lunas'),
+
+    # spk
+    path('order/spk/<int:order_id>/', detail_spk, name='detail_spk'),
     #pengiriman
-    path('pengiriman/<int:order_id>', pengiriman, name="pengiriman")
+    path('pengiriman/<int:order_id>', pengiriman, name="pengiriman"),
 ]

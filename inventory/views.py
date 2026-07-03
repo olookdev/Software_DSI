@@ -945,13 +945,28 @@ def edit_order(request, order_id):
             customer_id = request.POST.get('id_customer_hidden')
             nama_order = request.POST.get('nama_order_utama') 
             status = request.POST.get('status')
-            keterangan = request.POST.get('keterangan_utama') 
+            keterangan = request.POST.get('keterangan_utama') #
             total_harga = float(request.POST.get('total_harga_all', '0').replace('.', '').replace(',', '.'))
             uang_muka = float(request.POST.get('uang_muka', '0').replace('.', '').replace(',', '.'))
-            sisa_bayar = total_harga - uang_muka
             
+            items_json_data = request.POST.get('items_json')
+            total_kalkulasi_json = 0.0
+            
+            if items_json_data:
+                items_list = json.loads(items_json_data)
+                for item in items_list:
+                    total_kalkulasi_json += float(item.get('total', 0))
+            
+            if total_harga == 0 and total_kalkulasi_json > 0:
+                total_harga = total_kalkulasi_json
+            
+            sisa_bayar = total_harga - uang_muka
+        
             if customer_id:
                 order_utama.customer = get_object_or_404(Customer, id=customer_id)
+            
+            if nama_order:
+                order_utama.nama_order = nama_order
             
             order_utama.status = status
             order_utama.total_harga = total_harga
@@ -962,11 +977,8 @@ def edit_order(request, order_id):
                 
             order_utama.save() 
             
-            items_json_data = request.POST.get('items_json')
             if items_json_data:
-                items_list = json.loads(items_json_data)
                 OrderDetail.objects.filter(order_utama=order_utama).delete()
-                
                 for item in items_list:
                     OrderDetail.objects.create(
                         order_utama=order_utama,
@@ -985,7 +997,7 @@ def edit_order(request, order_id):
                     )
             
             messages.success(request, f"Order {order_utama.no_order} berhasil diperbarui!")
-            return redirect('/order/') 
+            return redirect('/order/')
             
         except Exception as e:
             messages.error(request, f"Gagal memperbarui order: {str(e)}")
@@ -1324,6 +1336,52 @@ def hapus_stok_opname(request, pk):
             
     return redirect('stok_opname')
         
+
+#====================faktur=======================
+def faktur_lunas(request, order_id):
+    # 1. Ambil data order utama
+    order_obj = get_object_or_404(OrderUtama, id=order_id)
+    
+    # 2. VALIDASI: Jika sisa bayar masih lebih besar dari 0, blokir akses
+    if order_obj.sisa_bayar > 0:
+        messages.error(
+            request, 
+            f"Gagal membuka Faktur! Order {order_obj.no_order} belum lunas. "
+            f"Sisa kekurangan masih Rp {int(order_obj.sisa_bayar):,}".replace(',', '.')
+        )
+        return redirect('list_order') # Kembalikan ke halaman list order
+        
+    # 3. Jika lolos validasi (Sisa Bayar == 0), tampilkan template faktur yang sama
+    context = {
+        'order': order_obj,
+        'tgl_cetak_sekarang': timezone.now(),
+        'is_faktur_lunas': True # Penanda di HTML jika sewaktu-waktu butuh membedakan judul nota
+    }
+    return render(request, 'inventory/faktur_order.html', context)
+
+#===================faktur order=====================
+def faktur_order(request, order_id):
+    order_obj = get_object_or_404(OrderUtama, id=order_id)
+    
+    context = {
+        'order': order_obj,
+        'tgl_cetak_sekarang': timezone.now()
+    }
+    return render(request, 'inventory/faktur_order.html', context)
+
+#===========================spk==============================
+def detail_spk(request, order_id):
+    order_obj = get_object_or_404(OrderUtama, id=order_id)
+
+    context = {
+        'order': order_obj, 
+        'tgl_cetak_sekarang': timezone.now()
+    }
+    return render(request, 'inventory/spk_detail.html', context)
+
+def update_tgl_cetak(request, order_id):
+    return JsonResponse({'status': 'success', 'message': 'Waktu cetak berhasil diperbarui'})
+
 #=========================pengiriman=======================
 @login_required(login_url='login')
 def pengiriman(request, order_id):
