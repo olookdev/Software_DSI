@@ -162,11 +162,9 @@ class ArusStok(models.Model):
     
 class OrderUtama(models.Model):
     STATUS_CHOICES = [
-        ('order', 'Order (Antrean)'),
-        ('desain', 'Proses Desain'),
-        ('produksi', 'Proses Produksi/Cetak'),
+        ('order', 'Order'),
+        ('proses', 'Proses'),
         ('selesai', 'Selesai'),
-        ('diambil', 'Sudah Diambil'),
     ]
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='order', verbose_name="Status Order")

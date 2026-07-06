@@ -12,6 +12,7 @@ from decimal import Decimal
 import json
 from decimal import Decimal
 from datetime import datetime
+from django.core.paginator import Paginator
 
 def login_view(request):
 
@@ -1006,15 +1007,17 @@ def edit_order(request, order_id):
     return redirect('/order/')
 
 #=====================================piutang=====================================
-@login_required(login_url='login')
 def piutang(request):
-    daftar_piutang = PiutangPelanggan.objects.filter(status='Belum Lunas').select_related('order', 'order__customer').order_by('-updated_at')
+    daftar_piutang_qs = PiutangPelanggan.objects.filter(status='Belum Lunas').select_related('order', 'order__customer').order_by('-updated_at')
+    paginator = Paginator(daftar_piutang_qs, 25)
+    page_number = request.GET.get('page')
+    
+    page_obj = paginator.get_page(page_number)
     
     context = {
-        'daftar_piutang': daftar_piutang,
+        'page_obj': page_obj, 
     }
     return render(request, 'inventory/piutang.html', context)
-
 
 @login_required(login_url='login')
 def bayar_cicilan(request, piutang_id):

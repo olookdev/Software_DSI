@@ -23,14 +23,14 @@
                 </tr>
             </thead>
             <tbody>
-                {% for item in daftar_piutang %}
+                {% for item in page_obj %}
                 <tr>
-                    <td>{{ forloop.counter }}</td>
+                    <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
                     <td>{{ item.order.customer.nama_customer }}</td>
                     <td>{{ item.order.no_order }}</td>
                     <td>{{ item.order.nama_order|default:"-" }}</td>
                     <td>{{ item.order.tgl_order|date:"d-m-Y" }}</td>
-                    <td class ="text-danger fw-bold">Rp {{ item.sisa_piutang|floatformat:0|intcomma }}</td>
+                    <td class="text-danger fw-bold">Rp {{ item.sisa_piutang|floatformat:0|intcomma }}</td>
                     <td>{{ item.status }}</td>
                     <td class="text-center">
                         <div class="d-flex gap-2 justify-content-center align-items-center">
@@ -56,6 +56,40 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <div class="text-muted small">
+                Menampilkan data {{ page_obj.start_index }} - {{ page_obj.end_index }} dari total {{ page_obj.paginator.count }} data piutang.
+            </div>
+            
+            <nav aria-label="Page navigation">
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo; Sebelum</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">&laquo; Sebelum</span></li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">Halaman {{ page_obj.number }} dari {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                                <span aria-hidden="true">Berikutnya &raquo;</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">Berikutnya &raquo;</span></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
     </div>
 </div>
 
