@@ -850,16 +850,16 @@ def tambah_order(request):
                         order_utama=order_utama,
                         nama_pesanan=item.get('nama_pesanan'),
                         nama_item=item.get('nama_item'),
-                        kode_item=item.get('kode_item'),
-                        qty=int(item.get('qty', 1)),
-                        panjang=float(item.get('panjang', 1.0)),
-                        lebar=float(item.get('lebar', 1.0)),
-                        harga_dasar=float(item.get('harga_dasar', 0)),
-                        harga_jual=float(item.get('harga_jual', 0)),
-                        jasa_desain=float(item.get('jasa_desain', 0)),
-                        biaya_lain=float(item.get('biaya_lain', 0)),
-                        total=float(item.get('total', 0)),
-                        keterangan=item.get('keterangan', '')
+                        kode_item=item.get('kode_item', '-'),
+                        qty=int(item.get('qty') if str(item.get('qty')).isdigit() else 1),
+                        panjang=float(item.get('panjang') if item.get('panjang') != '-' else 1.0),
+                        lebar=float(item.get('lebar') if item.get('lebar') != '-' else 1.0),
+                        harga_dasar=0.0,
+                        harga_jual=float(item.get('harga_jual', 0) if item.get('harga_jual') != '-' else 0),
+                        jasa_desain=0.0,
+                        biaya_lain=0.0,
+                        total=float(item.get('total', 0)), # Nilai total tetap tersimpan akurat ke database
+                        keterangan=item.get('keterangan', '-')
                     )
                 messages.success(request, f"Order {v_no_order} berhasil disimpan dengan seluruh itemnya!")
             else:
@@ -943,12 +943,17 @@ def edit_order(request, order_id):
         order_utama = get_object_or_404(OrderUtama, id=order_id)
         
         try:
-            customer_id = request.POST.get('id_customer_hidden')
-            nama_order = request.POST.get('nama_order_utama') 
-            status = request.POST.get('status')
-            keterangan = request.POST.get('keterangan_utama') #
-            total_harga = float(request.POST.get('total_harga_all', '0').replace('.', '').replace(',', '.'))
-            uang_muka = float(request.POST.get('uang_muka', '0').replace('.', '').replace(',', '.'))
+            customer_id = request.POST.get('customer_id')       
+            nama_order = request.POST.get('nama_order')         
+            status = request.POST.get('status')                 
+            keterangan = request.POST.get('keterangan')         
+            v_tgl_order = request.POST.get('tgl_order') # <-- 1. AMBIL DATA TANGGAL DARI INPUT FORM HTML
+            
+            total_harga_raw = request.POST.get('total_harga', '0')
+            uang_muka_raw = request.POST.get('uang_muka', '0')
+            
+            total_harga = float(str(total_harga_raw).replace('.', '').replace(',', '.')) if total_harga_raw else 0.0
+            uang_muka = float(str(uang_muka_raw).replace('.', '').replace(',', '.')) if uang_muka_raw else 0.0
             
             items_json_data = request.POST.get('items_json')
             total_kalkulasi_json = 0.0
@@ -969,16 +974,20 @@ def edit_order(request, order_id):
             if nama_order:
                 order_utama.nama_order = nama_order
             
+            # --- 2. UPDATE TANGGAL ORDER JIKA INPUTNYA ADA ---
+            if v_tgl_order:
+                order_utama.tgl_order = v_tgl_order
+
             order_utama.status = status
             order_utama.total_harga = total_harga
             order_utama.uang_muka = uang_muka
             order_utama.sisa_bayar = sisa_bayar
-            if keterangan:
-                order_utama.keterangan = keterangan
+            order_utama.keterangan = keterangan if keterangan else ''
                 
             order_utama.save() 
             
             if items_json_data:
+                # Hapus detail lama dan masukkan detail baru yang telah di-edit dari tabel kanan
                 OrderDetail.objects.filter(order_utama=order_utama).delete()
                 for item in items_list:
                     OrderDetail.objects.create(
@@ -998,13 +1007,15 @@ def edit_order(request, order_id):
                     )
             
             messages.success(request, f"Order {order_utama.no_order} berhasil diperbarui!")
-            return redirect('/order/')
+            return redirect('list_order')
             
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             messages.error(request, f"Gagal memperbarui order: {str(e)}")
-            return redirect('/order/')
+            return redirect('list_order')
             
-    return redirect('/order/')
+    return redirect('list_order')
 
 #=====================================piutang=====================================
 def piutang(request):

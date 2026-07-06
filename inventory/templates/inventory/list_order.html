@@ -476,17 +476,12 @@
         border-radius: 50%;
     }
 </style>
-
 <script>
 function catatWaktuCetak(event, element) {
-    // 1. Ambil ID Order dan URL tujuan SPK
     const orderId = element.getAttribute('data-order-id');
     const urlTujuan = element.getAttribute('href');
-    
-    // Ambil CSRF Token bawaan Django (pastikan ada {% csrf_token %} di halaman tersebut)
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
 
-    // 2. Kirim data ke backend menggunakan Fetch API
     fetch(`/order/update-tgl-cetak/${orderId}/`, {
         method: 'POST',
         headers: {
@@ -501,57 +496,49 @@ function catatWaktuCetak(event, element) {
         }
     })
     .catch(error => console.error('Error:', error));
-
-    // 3. Biarkan browser tetap membuka link href (tab baru) secara natural
 }
     
 document.addEventListener("DOMContentLoaded", function() {
-        // Find the actual input element inside your component search_bar
-        const realSearchInput = document.querySelector("#search-input-field input[type='text']");
-        const hiddenSearch = document.getElementById("hidden-search-input");
-        const filterForm = document.getElementById("form-filter");
+    const realSearchInput = document.querySelector("#search-input-field input[type='text']");
+    const hiddenSearch = document.getElementById("hidden-search-input");
+    const filterForm = document.getElementById("form-filter");
 
-        if (realSearchInput) {
-            // Pasang kembali text yang dicari sebelumnya ke dalam input bar agar tidak hilang setelah reload
-            realSearchInput.value = hiddenSearch.value;
+    if (realSearchInput) {
+        realSearchInput.value = hiddenSearch.value;
 
-            // Fitur Live Search: Otomatis submit form saat user selesai mengetik (tekan Enter)
-            realSearchInput.addEventListener("keypress", function(e) {
-                if (e.key === "Enter") {
-                    e.preventDefault(); // Mencegah submit default komponen
-                    hiddenSearch.value = realSearchInput.value; // Pindahkan teks ke form utama
-                    filterForm.submit(); // Jalankan pencarian global
-                }
-            });
+        realSearchInput.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                hiddenSearch.value = realSearchInput.value;
+                filterForm.submit();
+            }
+        });
 
-            // Opsional: Otomatis mencari jika user menghapus seluruh teks pencarian (klik silang/backspace habis)
-            realSearchInput.addEventListener("input", function() {
-                if (realSearchInput.value === "") {
-                    hiddenSearch.value = "";
-                    filterForm.submit();
-                }
-            });
-        }
-    });
+        realSearchInput.addEventListener("input", function() {
+            if (realSearchInput.value === "") {
+                hiddenSearch.value = "";
+                filterForm.submit();
+            }
+        });
+    }
+});
 
 document.addEventListener("DOMContentLoaded", function () {
     // 1. Inisialisasi Tanggal Default
     const tglInput = document.getElementById('tgl_order_input');
-    if (tglInput) tglInput.value = new Date().toISOString().split('T')[0];
+    if (tglInput && !tglInput.value) tglInput.value = new Date().toISOString().split('T')[0];
 
-    // 2. Map & State Array untuk menampung baris pesanan
+    // 2. Map & State Array
     let orderItemsArray = [];
     let customerDataMap = {};
     let produkDataMap = {};
-    
-    // STATE BARU: Untuk menandai baris mana yang sedang diedit (-1 berarti sedang tidak mengedit/mode tambah baru)
     let indexItemDiedit = -1;
 
     // DOM Elemen Customer
     const inputCariCust = document.getElementById('cari_customer');
     const listCust = document.getElementById('customer_list');
     
-    // DOM Elemen Hitungan Item Sisi Kanan
+    // DOM Elemen Sisi Kanan (Detail Item)
     const inputProduk = document.getElementById('input_produk');
     const listProd = document.getElementById('produk_list');
     const inputQty = document.getElementById('input_qty');
@@ -575,15 +562,16 @@ document.addEventListener("DOMContentLoaded", function () {
     const sisaPembayaran = document.getElementById('sisa_pembayaran');
     const checkLunas = document.getElementById('check_lunas');
 
-    // DOM Elemen Tombol Cetak Dokumen
+    // DOM Elemen Tombol Cetak
     const btnFaktur = document.getElementById('btn-cetak-faktur');
     const btnFakturOrder = document.getElementById('btn-cetak-faktur-order');
     const btnSpk = document.getElementById('btn-cetak-spk');
 
     // =========================================================================
-    // FUNGSI UTAMA FORMATTER FORMAT RUPIAH / TITIK RIBUAN
+    // FORMATTER RUPIAH
     // =========================================================================
     function formatRupiah(angka) {
+        if (angka === undefined || angka === null) return "0";
         let number_string = angka.toString().replace(/[^,\d]/g, ''),
             split = number_string.split(','),
             sisa = split[0].length % 3,
@@ -599,6 +587,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function bersihkanAngka(nilaiString) {
         if (!nilaiString) return 0;
+        // Jika nilainya adalah tanda strip dari database, anggap 0
+        if (nilaiString === "-") return 0;
         return parseFloat(nilaiString.toString().replace(/\./g, '')) || 0;
     }
 
@@ -640,26 +630,17 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================================
-    // B. AUTOCOMPLETE PRODUK (Mengambil Langsung dari Tabel HargaJual)
+    // B. AUTOCOMPLETE PRODUK
     // =========================================================================
     if (inputProduk) {
         inputProduk.addEventListener('input', function () {
             const val = this.value;
-            
             if (produkDataMap[val]) {
                 const hargaDariDatabase = produkDataMap[val].harga_jual;
-
-                if (inputHargaDasar) {
-                    inputHargaDasar.value = formatRupiah(hargaDariDatabase); 
-                }
-                
-                if (inputHargaJual) {
-                    inputHargaJual.value = formatRupiah(hargaDariDatabase);
-                }
-                
-                inputKodeBahan.value = produkDataMap[val].kode || "PRD";
-                inputNamaBahan.value = produkDataMap[val].nama;
-                
+                if (inputHargaDasar) inputHargaDasar.value = formatRupiah(hargaDariDatabase); 
+                if (inputHargaJual) inputHargaJual.value = formatRupiah(hargaDariDatabase);
+                if (inputKodeBahan) inputKodeBahan.value = produkDataMap[val].kode || "PRD";
+                if (inputNamaBahan) inputNamaBahan.value = produkDataMap[val].nama;
                 hitungItemIni();
                 return;
             }
@@ -669,20 +650,17 @@ document.addEventListener("DOMContentLoaded", function () {
                 .then(res => res.json())
                 .then(data => {
                     listProd.innerHTML = ""; 
-                    
                     data.results.forEach(item => {
                         const opt = document.createElement('option');
                         opt.value = item.nama_produk; 
                         listProd.appendChild(opt);
-                        
                         produkDataMap[item.nama_produk] = {
                             nama: item.nama_produk,
                             harga_jual: item.harga_jual, 
                             kode: item.kode_barang || item.kode_produk
                         };
                     });
-                })
-                .catch(err => console.error("Gagal memuat data HargaJual:", err));
+                });
         });
     }
 
@@ -690,63 +668,93 @@ document.addEventListener("DOMContentLoaded", function () {
     // C. KALKULATOR UTAMA PER ITEM CETAKAN
     // =========================================================================
     function hitungItemIni() {
-        const qty = parseInt(inputQty.value) || 0;
-        let p = parseFloat(inputP.value) || 1;
-        let l = parseFloat(inputL.value) || 1;
+        // Jika nilai input berupa "-", fallback ke nilai angka standard agar kalkulasi jalan saat diketik
+        const qtyStr = inputQty ? inputQty.value : "1";
+        const pStr = inputP ? inputP.value : "1";
+        const lStr = inputL ? inputL.value : "1";
+
+        const qty = (qtyStr === "-" || qtyStr === "") ? 1 : (parseInt(qtyStr) || 0);
+        let p = (pStr === "-" || pStr === "") ? 1 : (parseFloat(pStr) || 1);
+        let l = (lStr === "-" || lStr === "") ? 1 : (parseFloat(lStr) || 1);
         
         if (p <= 0) p = 1;
         if (l <= 0) l = 1;
 
         const luas = p * l;
-        if (inputLuas) {
-            inputLuas.value = luas.toFixed(2);
-        }
+        if (inputLuas) inputLuas.value = luas.toFixed(2);
 
         const hargaJualActual = bersihkanAngka(inputHargaJual.value); 
         const jasaDesain = bersihkanAngka(inputJasaDesain.value);
         const biayaLain = bersihkanAngka(inputBiayaLain.value);
 
         const total = (luas * hargaJualActual * qty) + jasaDesain + biayaLain;
-        
-        if (inputTotalItem) {
-            inputTotalItem.value = formatRupiah(Math.round(total));
-        }
+        if (inputTotalItem) inputTotalItem.value = formatRupiah(Math.round(total));
     }
 
-    const elemenPemicu = [inputQty, inputP, inputL, inputHargaJual, inputJasaDesain, inputBiayaLain];
-    elemenPemicu.forEach(el => {
-        if (el) {
-            el.addEventListener('input', hitungItemIni);
-        }
+    [inputQty, inputP, inputL, inputHargaJual, inputJasaDesain, inputBiayaLain].forEach(el => {
+        if (el) el.addEventListener('input', hitungItemIni);
     });
 
     // =========================================================================
-    // D. TOMBOL + TAMBAH / UPDATE KE TABEL SEMENTARA
+    // D. TOMBOL + TAMBAH / UPDATE KE TABEL SEMENTARA (FIXED LOGIC EDIT MANUAL)
     // =========================================================================
     if (btnTambahItem) {
-        btnTambahItem.addEventListener('click', function () {
+        btnTambahItem.addEventListener('click', function (e) {
+            e.preventDefault(); 
+
             const namaItemInput = document.getElementById('input_nama_item');
             const namaItem = namaItemInput ? namaItemInput.value.trim() : "";
-            const produk = inputProduk.value;
-            
-            if (!namaItem || !produk) {
-                alert("Nama Item dan Produk wajib diisi!");
+
+            let produk = inputProduk ? inputProduk.value.trim() : "-";
+            if (!produk) produk = "-";
+
+            const totalItemEl = document.getElementById('input_total_item');
+            let hargaFinal = totalItemEl ? bersihkanAngka(totalItemEl.value) : 0;
+
+            if (!namaItem) {
+                alert("Kolom 'Nama Item / Pesanan' wajib diisi!");
+                if (namaItemInput) namaItemInput.focus();
                 return;
             }
 
+            const kodeBahanMurni = inputKodeBahan ? inputKodeBahan.value.trim() : "";
+            const isDariListProduk = (kodeBahanMurni !== "" && kodeBahanMurni !== "-");
+
+            const qtyVal = inputQty ? inputQty.value.trim() : "1";
+            const pVal = inputP ? inputP.value.trim() : "1";
+            const lVal = inputL ? inputL.value.trim() : "1";
+
+            let kodeItemSimpan = isDariListProduk ? kodeBahanMurni : "-";
+            let qtySimpan = 1;
+            let pSimpan = 1.0;
+            let lSimpan = 1.0;
+
+            // --- PERBAIKAN LOGIKA DISINI ---
+            // Konversi nilai input dengan aman tanpa peduli dia produk list atau manual
+            qtySimpan = (qtyVal === "" || qtyVal === "-" || qtyVal === "0") ? 1 : parseInt(qtyVal);
+            pSimpan = (pVal === "" || pVal === "-" || pVal === "0") ? 1.0 : parseFloat(pVal);
+            lSimpan = (lVal === "" || lVal === "-" || lVal === "0") ? 1.0 : parseFloat(lVal);
+
+            // Jika item manual ketik bebas DAN nilainya bernilai default (1), kembalikan ke "-" agar tampilan estetik di tabel cetak
+            if (!isDariListProduk) {
+                if (qtyVal === "-" || qtyVal === "" || qtyVal === "0") qtySimpan = "-";
+                if (pVal === "-" || pVal === "" || pVal === "0") pSimpan = "-";
+                if (lVal === "-" || lVal === "" || lVal === "0") lSimpan = "-";
+            }
+
             const itemObj = {
-                kode_item: inputKodeBahan.value,
-                nama_item: produk,
-                nama_pesanan: namaItem,
-                qty: parseInt(inputQty.value) || 1,
-                panjang: parseFloat(inputP.value) || 1,
-                lebar: parseFloat(inputL.value) || 1,
-                harga_dasar: bersihkanAngka(inputHargaDasar.value),
-                harga_jual: bersihkanAngka(inputHargaJual.value),
-                jasa_desain: bersihkanAngka(inputJasaDesain.value),
-                biaya_lain: bersihkanAngka(inputBiayaLain.value),
-                total: bersihkanAngka(inputTotalItem.value),
-                keterangan: document.getElementById('input_keterangan_item').value
+                kode_item: kodeItemSimpan, 
+                nama_item: produk,          
+                nama_pesanan: namaItem,     
+                qty: qtySimpan, 
+                panjang: pSimpan,               
+                lebar: lSimpan,                 
+                harga_dasar: 0,
+                harga_jual: hargaFinal, 
+                jasa_desain: 0,
+                biaya_lain: 0,
+                total: hargaFinal,      
+                keterangan: document.getElementById('input_keterangan_item')?.value || "-"
             };
 
             if (indexItemDiedit === -1) {
@@ -754,9 +762,6 @@ document.addEventListener("DOMContentLoaded", function () {
             } else {
                 orderItemsArray[indexItemDiedit] = itemObj;
                 indexItemDiedit = -1; 
-                btnTambahItem.innerText = "+ Tambah";
-                btnTambahItem.classList.remove('btn-warning');
-                btnTambahItem.classList.add('btn-primary');
             }
 
             renderTabelItem();
@@ -765,29 +770,42 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function renderTabelItem() {
+        if (!tbodyTabel) return; 
         tbodyTabel.innerHTML = "";
+        
         let grandTotalHarga = 0;
         let grandTotalQty = 0;
 
         orderItemsArray.forEach((item, index) => {
             grandTotalHarga += item.total;
-            grandTotalQty += item.qty;
+            const qtyAngka = (typeof item.qty === 'number') ? item.qty : 1;
+            grandTotalQty += qtyAngka;
+
+            let txtUkuran = "-";
+            if (item.panjang !== "-" && item.lebar !== "-") {
+                txtUkuran = `${item.panjang} x ${item.lebar}`;
+            }
 
             const tr = document.createElement('tr');
             tr.className = "align-middle item-row-select text-start";
             tr.style.cursor = "pointer";
             tr.setAttribute('data-index', index);
-            tr.title = "Klik 1x untuk melihat/menandai, Klik 2x untuk edit data";
+            if(index === indexItemDiedit) {
+                tr.style.backgroundColor = "#fff3cd";
+                tr.classList.add('fw-bold');
+            }
 
             tr.innerHTML = `
                 <td class="text-start" style="padding-left: 8px;">${index + 1}</td>
-                <td class="text-start">${item.kode_item}</td>
+                <td class="text-start">${item.kode_item}</td> 
                 <td class="text-start">${item.nama_item}</td>
                 <td class="text-start">${item.nama_pesanan}</td>
-                <td class="text-start">${item.qty}</td>
-                <td class="text-start">${item.panjang} x ${item.lebar}</td>
+                <td class="text-center">${item.qty}</td> 
+                <td class="text-center">${txtUkuran}</td> 
                 <td class="text-start">Rp ${item.total.toLocaleString('id-ID')}</td>
-                <td class="text-start"><button type="button" class="btn btn-sm btn-danger py-0 px-2 btn-hapus" style="margin: 0;" data-index="${index}">X</button></td>
+                <td class="text-start">
+                    <button type="button" class="btn btn-sm btn-danger py-0 px-2 btn-hapus" style="margin: 0;" data-index="${index}">X</button>
+                </td>
             `;
             tbodyTabel.appendChild(tr);
         });
@@ -807,19 +825,21 @@ document.addEventListener("DOMContentLoaded", function () {
         const namaItemInput = document.getElementById('input_nama_item');
         if (namaItemInput) namaItemInput.value = "";
         
-        inputProduk.value = "";
-        inputQty.value = "1";
-        inputP.value = "1";
-        inputL.value = "1";
-        inputLuas.value = "1";
-        inputHargaJual.value = "0";
-        inputHargaDasar.value = "0";
-        inputKodeBahan.value = "-";
-        inputNamaBahan.value = "-";
-        inputJasaDesain.value = "0";
-        inputBiayaLain.value = "0";
-        inputTotalItem.value = "0";
-        document.getElementById('input_keterangan_item').value = "";
+        if (inputProduk) inputProduk.value = "";
+        if (inputQty) inputQty.value = "1";
+        if (inputP) inputP.value = "1";
+        if (inputL) inputL.value = "1";
+        if (inputLuas) inputLuas.value = "1";
+        if (inputHargaJual) inputHargaJual.value = "0";
+        if (inputHargaDasar) inputHargaDasar.value = "0";
+        if (inputKodeBahan) inputKodeBahan.value = "-";
+        if (inputNamaBahan) inputNamaBahan.value = "-";
+        if (inputJasaDesain) inputJasaDesain.value = "0";
+        if (inputBiayaLain) inputBiayaLain.value = "0";
+        if (inputTotalItem) inputTotalItem.value = "0";
+        
+        const ketItem = document.getElementById('input_keterangan_item');
+        if (ketItem) ketItem.value = "";
         
         indexItemDiedit = -1;
         if (btnTambahItem) {
@@ -835,12 +855,24 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================================
-    // EVENT LISTENER: CLICK (SOROT BARIS), DOUBLE CLICK, & HAPUS BARIS
+    // EVENT LISTENER: SELEKSI ITEM MODAL (KLIK 1X UNTUK DETAIL & EDIT)
     // =========================================================================
     if (tbodyTabel) {
         tbodyTabel.addEventListener('click', function (e) {
             const tr = e.target.closest('tr.item-row-select');
-            if (!tr || e.target.classList.contains('btn-hapus')) return;
+            if (!tr) return;
+
+            if (e.target.classList.contains('btn-hapus')) {
+                const index = e.target.getAttribute('data-index');
+                orderItemsArray.splice(index, 1);
+                if (indexItemDiedit == index) {
+                    resetInputItemSisiKanan();
+                } else if (indexItemDiedit > index) {
+                    indexItemDiedit--; 
+                }
+                renderTabelItem();
+                return;
+            }
 
             document.querySelectorAll('#tabel_order_item tbody tr').forEach(row => {
                 row.style.backgroundColor = ""; 
@@ -849,11 +881,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
             tr.style.backgroundColor = "#fff3cd"; 
             tr.classList.add('fw-bold');
-        });
-
-        tbodyTabel.addEventListener('dblclick', function (e) {
-            const tr = e.target.closest('tr.item-row-select');
-            if (!tr) return;
 
             const index = parseInt(tr.getAttribute('data-index'));
             const targetData = orderItemsArray[index];
@@ -861,20 +888,18 @@ document.addEventListener("DOMContentLoaded", function () {
             if (targetData) {
                 indexItemDiedit = index;
 
-                const inputNamaItem = document.getElementById('input_nama_item') || 
-                                      document.getElementById('input_nama_order') || 
-                                      document.getElementById('input_nama_pesanan');
-                                      
-                if (inputNamaItem) {
-                    inputNamaItem.value = targetData.nama_pesanan; 
-                }
-                
-                if (inputProduk) inputProduk.value = targetData.nama_item; 
-                
+                const inputNamaItem = document.getElementById('input_nama_item');
+                if (inputNamaItem) inputNamaItem.value = targetData.nama_pesanan; 
+                if (inputProduk) inputProduk.value = targetData.nama_item === "-" ? "" : targetData.nama_item; 
                 if (inputQty) inputQty.value = targetData.qty;
                 if (inputP) inputP.value = targetData.panjang;
                 if (inputL) inputL.value = targetData.lebar;
-                if (inputLuas) inputLuas.value = (targetData.panjang * targetData.lebar).toFixed(2);
+                
+                if (inputLuas) {
+                    let pNum = parseFloat(targetData.panjang) || 1;
+                    let lNum = parseFloat(targetData.lebar) || 1;
+                    inputLuas.value = (pNum * lNum).toFixed(2);
+                }
                 
                 if (inputHargaDasar) inputHargaDasar.value = formatRupiah(targetData.harga_dasar);
                 if (inputHargaJual) inputHargaJual.value = formatRupiah(targetData.harga_jual);
@@ -892,28 +917,15 @@ document.addEventListener("DOMContentLoaded", function () {
                     btnTambahItem.classList.remove('btn-primary');
                     btnTambahItem.classList.add('btn-warning'); 
                 }
-
-                document.querySelectorAll('#tabel_order_item tbody tr').forEach(row => {
-                    row.style.backgroundColor = "";
-                    row.classList.remove('fw-bold');
-                });
-                tr.style.backgroundColor = "#fff3cd"; 
-                tr.classList.add('fw-bold');
             }
         });
+    }
 
-        tbodyTabel.addEventListener('click', function (e) {
-            if (e.target.classList.contains('btn-hapus')) {
-                const index = e.target.getAttribute('data-index');
-                orderItemsArray.splice(index, 1);
-                
-                if (indexItemDiedit == index) {
-                    resetInputItemSisiKanan();
-                } else if (indexItemDiedit > index) {
-                    indexItemDiedit--; 
-                }
-
-                renderTabelItem();
+    const areaTabelItem = document.getElementById('tabel_order_item');
+    if (areaTabelItem) {
+        areaTabelItem.addEventListener('click', function(e) {
+            if (!e.target.closest('tr.item-row-select') && !e.target.classList.contains('btn-hapus')) {
+                resetInputItemSisiKanan();
             }
         });
     }
@@ -925,15 +937,10 @@ document.addEventListener("DOMContentLoaded", function () {
         const totalHarga = bersihkanAngka(totalHargaAll.value);
         const dp = bersihkanAngka(uangMuka.value);
         const sisa = totalHarga - dp;
-        
-        if (sisaPembayaran) {
-            sisaPembayaran.value = sisa >= 0 ? formatRupiah(sisa) : "0";
-        }
+        if (sisaPembayaran) sisaPembayaran.value = sisa >= 0 ? formatRupiah(sisa) : "0";
     }
 
-    if (uangMuka) {
-        uangMuka.addEventListener('input', hitungSisaPembayaran);
-    }
+    if (uangMuka) uangMuka.addEventListener('input', hitungSisaPembayaran);
 
     if (checkLunas) {
         checkLunas.addEventListener('change', function () {
@@ -949,7 +956,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================================
-    // F. GENERATE OTOMATIS NO ORDER (HANYA UNTUK TAMBAH BARU)
+    // F. GENERATE NO ORDER (TAMBAH BARU)
     // =========================================================================
     let isEditMode = false; 
 
@@ -958,10 +965,12 @@ document.addEventListener("DOMContentLoaded", function () {
         myModalEl.addEventListener('show.bs.modal', function (event) {
             if (isEditMode) return; 
 
+            const modalTitle = document.querySelector('#tambahOrderModal .modal-title');
+            if (modalTitle) modalTitle.innerText = "Tambah Order";
+
             const inputNoOrder = document.getElementById('modal_no_order');
             if (inputNoOrder) {
                 inputNoOrder.value = "Memuat..."; 
-                
                 fetch('/api/get-next-order-number/')
                     .then(response => response.json())
                     .then(data => {
@@ -976,7 +985,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================================
-    // DETEKSI KLIK BARIS TABEL UTAMA UNTUK EDIT/DETAIL MODAL
+    // DOUBLE CLICK (dblclick) TABEL UTAMA UNTUK EDIT ORDER
     // =========================================================================
     const tabelUtamaOrder = document.getElementById('tabel_utama_order');
     const selectStatusModal = document.querySelector('#tambahOrderModal select[name="status"]'); 
@@ -984,13 +993,15 @@ document.addEventListener("DOMContentLoaded", function () {
     const formOrderUtama = document.getElementById('formOrderUtama'); 
 
     if (tabelUtamaOrder) {
-        tabelUtamaOrder.addEventListener('click', function (e) {
+        tabelUtamaOrder.addEventListener('dblclick', function (e) {
             const tr = e.target.closest('.baris-order');
             if (!tr) return;
 
             isEditMode = true; 
 
-            // 1. Ambil data dari atribut HTML
+            const modalTitle = document.querySelector('#tambahOrderModal .modal-title');
+            if (modalTitle) modalTitle.innerText = "Edit Order";
+
             const idOrder = tr.getAttribute('data-id');
             const noOrder = tr.getAttribute('data-no-order');
             const tglOrder = tr.getAttribute('data-tgl');
@@ -1006,22 +1017,17 @@ document.addEventListener("DOMContentLoaded", function () {
             const sisaBayarVal = tr.getAttribute('data-sisa-bayar');
             const keterangan = tr.getAttribute('data-keterangan');
 
-            // ================================================================
-            // LOGIKA UTAMA SUNTIKAN: SET LINK & TAMPILKAN TOMBOL CETAK
-            // ================================================================
             if (idOrder && btnFaktur && btnFakturOrder && btnSpk) {
                 btnFaktur.href = `/order/faktur/${idOrder}/`;
                 btnFakturOrder.href = `/order/faktur-order/${idOrder}/`;
                 btnSpk.href = `/order/spk/${idOrder}/`;
 
-                // Buang d-none dan tampilkan tombol cetak
                 [btnFaktur, btnFakturOrder, btnSpk].forEach(btn => {
                     btn.classList.remove('d-none');
                     btn.classList.add('d-inline-flex');
                 });
             }
 
-            // 2. Isi data utama ke Form Sisi Kiri Modal
             const modalNoOrder = document.getElementById('modal_no_order');
             if (modalNoOrder) modalNoOrder.value = noOrder;
             if (tglInput) tglInput.value = tglOrder;
@@ -1030,14 +1036,9 @@ document.addEventListener("DOMContentLoaded", function () {
             if (hiddenCust) hiddenCust.value = custId;
             if (inputCariCust) inputCariCust.value = custNama;
             
-            const inputKodeCust = document.getElementById('kode_customer');
-            if (inputKodeCust) inputKodeCust.value = custKode || "-";
-            
-            const inputAlamatCust = document.getElementById('alamat_customer');
-            if (inputAlamatCust) inputAlamatCust.value = custAlamat || "-";
-            
-            const inputTelpCust = document.getElementById('telp_customer');
-            if (inputTelpCust) inputTelpCust.value = custTelp || "-";
+            if (document.getElementById('kode_customer')) document.getElementById('kode_customer').value = custKode || "-";
+            if (document.getElementById('alamat_customer')) document.getElementById('alamat_customer').value = custAlamat || "-";
+            if (document.getElementById('telp_customer')) document.getElementById('telp_customer').value = custTelp || "-";
 
             const inputNamaOrderModal = document.getElementById('input_nama_order'); 
             if (inputNamaOrderModal) inputNamaOrderModal.value = namaOrder;
@@ -1045,15 +1046,12 @@ document.addEventListener("DOMContentLoaded", function () {
             const inputKeteranganUtama = document.getElementById('input_keterangan_utama'); 
             if (inputKeteranganUtama) inputKeteranganUtama.value = keterangan;
 
-            // 3. Pasang Nilai Finansial
             if (totalHargaAll) totalHargaAll.value = formatRupiah(Math.round(parseFloat(totalHarga) || 0));
             if (uangMuka) uangMuka.value = formatRupiah(Math.round(parseFloat(uangMukaVal) || 0));
             if (sisaPembayaran) sisaPembayaran.value = formatRupiah(Math.round(parseFloat(sisaBayarVal) || 0));
 
-            // 4. Logika Pengecekan Status
             if (selectStatusModal) {
                 selectStatusModal.value = statusOrder;
-
                 if (statusOrder.toLowerCase() === 'selesai') {
                     selectStatusModal.setAttribute('disabled', true);
                     if (btnSimpanOrder) {
@@ -1069,12 +1067,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             }
 
-            // 5. Ubah URL Action Form ke Edit/Update
-            if (formOrderUtama) {
-                formOrderUtama.action = `/order/edit/${idOrder}/`; 
-            }
+            if (formOrderUtama) formOrderUtama.action = `/order/edit/${idOrder}/`; 
 
-            // 6. Tarik Data Item Cetakan Sisi Kanan secara AJAX
+            // Tarik Data Item AJAX
             fetch(`/api/get-order-items/${idOrder}/`)
                 .then(res => res.json())
                 .then(data => {
@@ -1082,9 +1077,9 @@ document.addEventListener("DOMContentLoaded", function () {
                         kode_item: item.kode_item,
                         nama_item: item.nama_item,         
                         nama_pesanan: item.nama_pesanan,   
-                        qty: parseInt(item.qty) || 1,
-                        panjang: parseFloat(item.panjang) || 1,
-                        lebar: parseFloat(item.lebar) || 1,
+                        qty: item.qty === "-" ? "-" : (parseInt(item.qty) || 1),
+                        panjang: item.panjang === "-" ? "-" : (parseFloat(item.panjang) || 1),
+                        lebar: item.lebar === "-" ? "-" : (parseFloat(item.lebar) || 1),
                         harga_dasar: parseFloat(item.harga_dasar) || 0,
                         harga_jual: parseFloat(item.harga_jual) || 0,
                         jasa_desain: parseFloat(item.jasa_desain) || 0,
@@ -1094,53 +1089,30 @@ document.addEventListener("DOMContentLoaded", function () {
                     }));
                     
                     renderTabelItem(); 
-
-                    if (orderItemsArray.length > 0) {
-                        indexItemDiedit = 0; 
-                        const itemPertama = orderItemsArray[0];
-
-                        const inputNamaItem = document.getElementById('input_nama_item');
-                        if (inputNamaItem) inputNamaItem.value = itemPertama.nama_pesanan;
-                        if (inputProduk) inputProduk.value = itemPertama.nama_item;
-                        if (inputQty) inputQty.value = itemPertama.qty;
-                        if (inputP) inputP.value = itemPertama.panjang;
-                        if (inputL) inputL.value = itemPertama.lebar;
-                        if (inputLuas) inputLuas.value = (itemPertama.panjang * itemPertama.lebar).toFixed(2);
-                        if (inputHargaDasar) inputHargaDasar.value = formatRupiah(itemPertama.harga_dasar);
-                        if (inputHargaJual) inputHargaJual.value = formatRupiah(itemPertama.harga_jual);
-                        if (inputKodeBahan) inputKodeBahan.value = itemPertama.kode_item;
-                        if (inputNamaBahan) inputNamaBahan.value = itemPertama.nama_item;
-                        if (inputJasaDesain) inputJasaDesain.value = formatRupiah(itemPertama.jasa_desain);
-                        if (inputBiayaLain) inputBiayaLain.value = formatRupiah(itemPertama.biaya_lain);
-                        if (inputTotalItem) inputTotalItem.value = formatRupiah(itemPertama.total);
-                        
-                        const inputKeteranganItem = document.getElementById('input_keterangan_item');
-                        if (inputKeteranganItem) inputKeteranganItem.value = itemPertama.keterangan || "";
-
-                        if (btnTambahItem) {
-                            btnTambahItem.innerText = "Simpan Perubahan";
-                            btnTambahItem.classList.remove('btn-primary');
-                            btnTambahItem.classList.add('btn-warning');
-                        }
+                    resetInputItemSisiKanan();
+                    
+                    var modalInstance = bootstrap.Modal.getInstance(document.getElementById('tambahOrderModal'));
+                    if(!modalInstance){
+                        modalInstance = new bootstrap.Modal(document.getElementById('tambahOrderModal'));
                     }
+                    modalInstance.show();
                 })
                 .catch(err => {
                     console.error("Gagal mengambil item order:", err);
                     orderItemsArray = [];
                     renderTabelItem();
                 });
-
-            // 7. Buka Modal
-            const modalTambah = bootstrap.Modal.getOrCreateInstance(document.getElementById('tambahOrderModal'));
-            modalTambah.show();
         });
     }
 
-    // RESET FORM DAN SEMBUNYIKAN TOMBOL CETAK SAAT MODAL DITUTUP
+    // RESET KETIKA MODAL DITUTUP
     const modalTambahEl = document.getElementById('tambahOrderModal');
     if (modalTambahEl) {
         modalTambahEl.addEventListener('hidden.bs.modal', function () {
             isEditMode = false; 
+            const modalTitle = document.querySelector('#tambahOrderModal .modal-title');
+            if (modalTitle) modalTitle.innerText = "Tambah Order";
+
             if (formOrderUtama) formOrderUtama.action = "/order/tambah/"; 
             if (btnSimpanOrder) {
                 btnSimpanOrder.innerText = "Simpan Order";
@@ -1148,7 +1120,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }
             if (selectStatusModal) selectStatusModal.removeAttribute('disabled');
             
-            // Sembunyikan kembali tombol cetak saat modal ditutup / tambah baru
             if (btnFaktur && btnFakturOrder && btnSpk) {
                 [btnFaktur, btnFakturOrder, btnSpk].forEach(btn => {
                     btn.classList.remove('d-inline-flex');
@@ -1163,14 +1134,5 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 });
-
-if (sisaBayar == 0) {
-    // Jika sudah lunas, munculkan tombol Faktur dan arahkan ke view faktur_lunas
-    $('#btn-cetak-faktur').removeClass('d-none').addClass('d-flex');
-    $('#btn-cetak-faktur').attr('href', '/order/faktur-lunas/' + orderId + '/');
-} else {
-    // Jika belum lunas, sembunyikan tombol faktur lunas
-    $('#btn-cetak-faktur').removeClass('d-flex').addClass('d-none');
-}
 </script>
 {% endblock %}
