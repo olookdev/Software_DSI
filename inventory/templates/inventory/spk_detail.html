@@ -231,8 +231,15 @@
                 {% for item in order.items.all %}
                 <tr>
                     <td style="text-align: center;">{{ forloop.counter }}</td>
-                    <td>{{ item.kode_item}}</td>
-                    <td>{{ item.nama_item }}
+                    <td>{{ item.kode_item }}</td>
+                    <td>
+                        <div style="font-weight: bold;">{{ item.nama_item }}</div>
+                        
+                        {% if item.keterangan and item.keterangan != "-" and item.keterangan != "" %}
+                        <div style="font-size: 14px; color: #000000; font-style: italic; margin-top: 4px; line-height: 1.3;">
+                            {{ item.keterangan }}
+                        </div>
+                        {% endif %}
                     </td>
                     <td>{{ item.produk.nama|default:item.nama_pesanan }}</td>
                     <td>{{ item.qty }}</td>
