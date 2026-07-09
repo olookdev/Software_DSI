@@ -263,7 +263,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                </tbody>
+                            </tbody>
                         </table>
                     </div>
 
@@ -886,15 +886,17 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================================
-    // EVENT LISTENER: SELEKSI ITEM MODAL (KLIK 1X UNTUK DETAIL & EDIT)
+    // EVENT LISTENER: SELEKSI ITEM MODAL (KLIK 1X UNTUK DETAIL, KLIK LAGI UNTUK RESET)
     // =========================================================================
     if (tbodyTabel) {
         tbodyTabel.addEventListener('click', function (e) {
             const tr = e.target.closest('tr.item-row-select');
             if (!tr) return;
 
+            const index = parseInt(tr.getAttribute('data-index'));
+
+            // 1. JIKA KLIK TOMBOL HAPUS (X)
             if (e.target.classList.contains('btn-hapus')) {
-                const index = e.target.getAttribute('data-index');
                 orderItemsArray.splice(index, 1);
                 if (indexItemDiedit == index) {
                     resetInputItemSisiKanan();
@@ -905,6 +907,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
 
+            // 2. LOGIKA TOGGLE: JIKA BARIS YANG SAMA DIKLIK LAGI, RESET FORM
+            if (indexItemDiedit === index) {
+                resetInputItemSisiKanan();
+                return; // Berhenti di sini, tidak perlu memuat detail lagi
+            }
+
+            // 3. JIKA BARIS BERBEDA DIKLIK (PROSES SELECT DETAIL)
             document.querySelectorAll('#tabel_order_item tbody tr').forEach(row => {
                 row.style.backgroundColor = ""; 
                 row.classList.remove('fw-bold');
@@ -913,7 +922,6 @@ document.addEventListener("DOMContentLoaded", function () {
             tr.style.backgroundColor = "#fff3cd"; 
             tr.classList.add('fw-bold');
 
-            const index = parseInt(tr.getAttribute('data-index'));
             const targetData = orderItemsArray[index];
 
             if (targetData) {
