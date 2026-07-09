@@ -305,8 +305,13 @@
                         <button type="submit" class="btn-footer-order text-white border-0 py-2 px-4 rounded" style="background-color: #1A6B8D;">Simpan Order</button>
                         <button type="reset" class="btn-footer-order text-white border-0 py-2 px-4 rounded" style="background-color: #8B0000;">Reset</button>
                         
-                        <a href="#" id="btn-cetak-faktur" target="_blank" class="btn-footer-order text-white text-decoration-none py-2 px-4 rounded d-none align-items-center justify-content-center" style="background-color: #244855;">
-                            <i class="bi bi-file-earmark-text me-1"></i> Faktur
+                        <a href="#" 
+                            id="btn-cetak-faktur" 
+                            target="_blank" 
+                            onclick="return cekAksesFaktur(event, this);"
+                            class="btn-footer-order text-white text-decoration-none py-2 px-4 rounded d-none align-items-center justify-content-center" 
+                            style="background-color: #244855;">
+                                <i class="bi bi-file-earmark-text me-1"></i> Faktur
                         </a>
 
                         <a href="/order/faktur/{{ order.id }}/" 
@@ -476,11 +481,14 @@
         border-radius: 50%;
     }
 </style>
+
 <script>
 function catatWaktuCetak(event, element) {
-    const orderId = element.getAttribute('data-order-id');
-    const urlTujuan = element.getAttribute('href');
+    const orderId = element.getAttribute('data-order-id') || element.href.split('/').filter(Boolean).pop();
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+
+    // Pastikan orderId valid sebelum menembak API
+    if (!orderId || orderId === "#") return;
 
     fetch(`/order/update-tgl-cetak/${orderId}/`, {
         method: 'POST',
@@ -497,7 +505,29 @@ function catatWaktuCetak(event, element) {
     })
     .catch(error => console.error('Error:', error));
 }
+
+// FUNGSI BARU: Validasi pelunasan sisa bayar sebelum membuka tab faktur
+function cekAksesFaktur(event, element) {
+    const sisaInput = document.getElementById('sisa_pembayaran');
     
+    // Gunakan fungsi bersihkanAngka bawaan mas untuk menghapus titik dot format rupiah
+    let nilaiSisa = 0;
+    if (sisaInput) {
+        // Membersihkan format string seperti "150.000" menjadi angka murni 150000
+        nilaiSisa = parseFloat(sisaInput.value.toString().replace(/\./g, '')) || 0;
+    }
+
+    if (nilaiSisa > 0) {
+        event.preventDefault(); // Menghentikan aksi buka link target_blank
+        alert("Lunasi pembayaran dahulu baru dapat mengakses faktur");
+        return false;
+    }
+
+    // Jika sisa pembayaran sudah 0, catat waktu ke server dan izinkan buka tab baru
+    catatWaktuCetak(event, element);
+    return true;
+}
+
 document.addEventListener("DOMContentLoaded", function() {
     const realSearchInput = document.querySelector("#search-input-field input[type='text']");
     const hiddenSearch = document.getElementById("hidden-search-input");
@@ -533,6 +563,7 @@ document.addEventListener("DOMContentLoaded", function () {
     let customerDataMap = {};
     let produkDataMap = {};
     let indexItemDiedit = -1;
+    let sisaBayarDariDB = 0;
 
     // DOM Elemen Customer
     const inputCariCust = document.getElementById('cari_customer');
@@ -934,10 +965,16 @@ document.addEventListener("DOMContentLoaded", function () {
     // E. SISA PEMBAYARAN DAN FINANSIAL
     // =========================================================================
     function hitungSisaPembayaran() {
-        const totalHarga = bersihkanAngka(totalHargaAll.value);
-        const dp = bersihkanAngka(uangMuka.value);
-        const sisa = totalHarga - dp;
-        if (sisaPembayaran) sisaPembayaran.value = sisa >= 0 ? formatRupiah(sisa) : "0";
+        // Jika dalam mode edit dan input uang muka belum diotak-atik, gunakan data DB
+        if (isEditMode) {
+            if (sisaPembayaran) sisaPembayaran.value = formatRupiah(sisaBayarDariDB);
+        } else {
+            // Ini untuk mode "Tambah Order" Baru (kalkulasi normal)
+            const totalHarga = bersihkanAngka(totalHargaAll.value);
+            const dp = bersihkanAngka(uangMuka.value);
+            const sisa = totalHarga - dp;
+            if (sisaPembayaran) sisaPembayaran.value = sisa >= 0 ? formatRupiah(sisa) : "0";
+        }
     }
 
     if (uangMuka) uangMuka.addEventListener('input', hitungSisaPembayaran);
@@ -1017,10 +1054,17 @@ document.addEventListener("DOMContentLoaded", function () {
             const sisaBayarVal = tr.getAttribute('data-sisa-bayar');
             const keterangan = tr.getAttribute('data-keterangan');
 
+            sisaBayarDariDB = parseFloat(sisaBayarVal) || 0;
+
             if (idOrder && btnFaktur && btnFakturOrder && btnSpk) {
                 btnFaktur.href = `/order/faktur/${idOrder}/`;
+                btnFaktur.setAttribute('data-order-id', idOrder);
+
                 btnFakturOrder.href = `/order/faktur-order/${idOrder}/`;
+                btnFakturOrder.setAttribute('data-order-id', idOrder);
+
                 btnSpk.href = `/order/spk/${idOrder}/`;
+                btnSpk.setAttribute('data-order-id', idOrder);
 
                 [btnFaktur, btnFakturOrder, btnSpk].forEach(btn => {
                     btn.classList.remove('d-none');
@@ -1048,7 +1092,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             if (totalHargaAll) totalHargaAll.value = formatRupiah(Math.round(parseFloat(totalHarga) || 0));
             if (uangMuka) uangMuka.value = formatRupiah(Math.round(parseFloat(uangMukaVal) || 0));
-            if (sisaPembayaran) sisaPembayaran.value = formatRupiah(Math.round(parseFloat(sisaBayarVal) || 0));
+            if (sisaPembayaran) sisaPembayaran.value = formatRupiah(Math.round(sisaBayarDariDB));
 
             if (selectStatusModal) {
                 selectStatusModal.value = statusOrder;
