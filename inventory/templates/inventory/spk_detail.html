@@ -14,12 +14,6 @@
             font-size: 13px;
         }
 
-        .no-print-area {
-            max-width: 950px;
-            margin: 0 auto 15px auto;
-            display: flex;
-            justify-content: space-between;
-        }
         .btn {
             padding: 8px 16px;
             border-radius: 4px;
@@ -162,17 +156,31 @@
                 padding: 0;
                 max-width: 100%;
             }
+        }
+
+        .no-print-area {
+            max-width: 950px;
+            margin: 0 auto 15px auto;
+            display: flex;
+        }
+
+        @media print {
             .no-print-area {
-                display: none !important;
+                display: none !important; 
             }
         }
     </style>
 </head>
 <body>
-    <div class="no-print-area">
-        <button class="btn btn-print" onclick="window.print();">🖨️ Print SPK</button>
+    <div class="no-print-area" style="margin-left: 435px; margin-bottom: 10px;">
+        <div style ="margin-right: 10px;">
+            <button class="btn btn-print" onclick="window.print();">🖨️ Print SPK</button>
+        </div>
+        <div>
+            <button class="btn btn-print" onclick="downloadSPK();">🖨️ Save SPK</button>
+        </div>
     </div>
-
+    
     <div class="spk-paper">
         <table class="header-table">
             <tr>
@@ -265,6 +273,8 @@
 </body>
 </html>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
 <script>
 function cetakSPK() {
     const hariIni = new Date();
@@ -282,9 +292,33 @@ function cetakSPK() {
     const formatLengkap = `${jam}:${menit}, ${dd}-${mm}-${yyyy}`;
     
     // Masukkan ke dalam HTML
-    document.getElementById('tgl-cetak-isi').innerText = formatLengkap;
+    const tglIsi = document.getElementById('tgl-cetak-isi');
+    if (tglIsi) tglIsi.innerText = formatLengkap;
     
     // Jalankan perintah print browser
     window.print();
+}
+
+function downloadSPK() {
+    // 1. Sembunyikan tombol no-print-area secara paksa sesaat sebelum html2pdf membaca layout screen
+    const tombolArea = document.querySelector('.no-print-area');
+    if (tombolArea) tombolArea.style.setProperty('display', 'none', 'important');
+
+    // Cari elemen utama dokumen SPK Mas (misal bungkus area cetak dengan id="area-spk")
+    const element = document.getElementById('area-spk') || document.body;
+    
+    // Konfigurasi file PDF yang akan dihasilkan
+    const opsi = {
+        margin:       0.5,
+        filename:     'SPK-Order.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true }, 
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    // Jalankan fungsi download, lalu kembalikan tampilan tombol setelah proses generate selesai
+    html2pdf().set(opsi).from(element).save().then(() => {
+        if (tombolArea) tombolArea.style.display = 'flex'; // Munculkan kembali tombol di layar komputer mas
+    });
 }
 </script>
