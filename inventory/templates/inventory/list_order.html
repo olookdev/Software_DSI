@@ -564,6 +564,8 @@ document.addEventListener("DOMContentLoaded", function () {
     let produkDataMap = {};
     let indexItemDiedit = -1;
     let sisaBayarDariDB = 0;
+    let totalHargaAwalDB = 0;
+    let uangMukaAwalDB = 0;
 
     // DOM Elemen Customer
     const inputCariCust = document.getElementById('cari_customer');
@@ -973,14 +975,28 @@ document.addEventListener("DOMContentLoaded", function () {
     // E. SISA PEMBAYARAN DAN FINANSIAL
     // =========================================================================
     function hitungSisaPembayaran() {
-        // Jika dalam mode edit dan input uang muka belum diotak-atik, gunakan data DB
+        const totalHargaSekarang = bersihkanAngka(totalHargaAll.value);
+
         if (isEditMode) {
-            if (sisaPembayaran) sisaPembayaran.value = formatRupiah(sisaBayarDariDB);
+            // 1. Hitung selisih perubahan harga item saat ini dibanding nota awal
+            const selisihHargaItem = totalHargaSekarang - totalHargaAwalDB;
+
+            // 2. Hitung sisa bayar baru berdasarkan selisih item
+            let sisaBaru = sisaBayarDariDB + selisihHargaItem;
+            if (sisaBaru < 0) sisaBaru = 0;
+
+            // 3. PENTING: Hitung Uang Muka Baru agar sinkron saat di-save ke DB Django
+            // Rumus: Uang Muka Baru = Total Harga Baru - Sisa Bayar Baru
+            let uangMukaBaru = totalHargaSekarang - sisaBaru;
+            if (uangMukaBaru < 0) uangMukaBaru = 0;
+
+            // 4. Set nilai ke masing-masing input form
+            if (uangMuka) uangMuka.value = formatRupiah(Math.round(uangMukaBaru));
+            if (sisaPembayaran) sisaPembayaran.value = formatRupiah(Math.round(sisaBaru));
         } else {
-            // Ini untuk mode "Tambah Order" Baru (kalkulasi normal)
-            const totalHarga = bersihkanAngka(totalHargaAll.value);
+            // Ini untuk mode "Tambah Order" baru (kalkulasi standard)
             const dp = bersihkanAngka(uangMuka.value);
-            const sisa = totalHarga - dp;
+            const sisa = totalHargaSekarang - dp;
             if (sisaPembayaran) sisaPembayaran.value = sisa >= 0 ? formatRupiah(sisa) : "0";
         }
     }
@@ -1063,6 +1079,8 @@ document.addEventListener("DOMContentLoaded", function () {
             const keterangan = tr.getAttribute('data-keterangan');
 
             sisaBayarDariDB = parseFloat(sisaBayarVal) || 0;
+            totalHargaAwalDB = parseFloat(totalHarga) || 0;
+            uangMukaAwalDB = parseFloat(uangMukaVal) || 0;
 
             if (idOrder && btnFaktur && btnFakturOrder && btnSpk) {
                 btnFaktur.href = `/order/faktur/${idOrder}/`;
@@ -1162,6 +1180,10 @@ document.addEventListener("DOMContentLoaded", function () {
     if (modalTambahEl) {
         modalTambahEl.addEventListener('hidden.bs.modal', function () {
             isEditMode = false; 
+            sisaBayarDariDB = 0;
+            totalHargaAwalDB = 0;
+            uangMukaAwalDB = 0;
+            
             const modalTitle = document.querySelector('#tambahOrderModal .modal-title');
             if (modalTitle) modalTitle.innerText = "Tambah Order";
 
