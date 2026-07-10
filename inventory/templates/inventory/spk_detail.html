@@ -27,7 +27,7 @@
 
         /* --- Container Utama Mengikuti image_63dd82.png --- */
         .spk-paper {
-            max-width: 950px;
+            max-width: 1000px;
             height: 750px;
             margin: 0 auto;
             background: #ffffff;
@@ -105,9 +105,17 @@
         
         /* --- Tabel Item Pekerjaan --- */
         .main-table {
-            width: 100%;
+            width: 100% !important;
             border-collapse: collapse;
             margin-top: 10px;
+            table-layout: fixed; /* Memaksa kolom patuh pada persentase width yang kita set di th */
+            word-wrap: break-word;
+        }
+
+        /* Pastikan text center untuk Qty dan Ukuran di body tabel agar rapi */
+        .main-table tbody td:nth-child(5),
+        .main-table tbody td:nth-child(6) {
+            text-align: center;
         }
         .main-table th {
             font-weight: bold;
@@ -169,6 +177,27 @@
                 display: none !important; 
             }
         }
+
+        .text-nowrap-forced {
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+        }
+
+        /* Opsional: Pastikan ukuran font tabel SPK stabil */
+        #area-spk table {
+            width: 100% !important;
+            table-layout: auto;
+        }
+
+        .main-table th, .main-table td {
+            padding: 6px 8px; /* Memberikan ruang udara antar kolom */
+            vertical-align: top;
+        }
+
+        /* Khusus kolom Kode Produk (kolom ke-2), kita beri jarak kanan ekstra */
+        .main-table td:nth-child(2) {
+            padding-right: 15px !important;
+        }
     </style>
 </head>
 <body>
@@ -210,9 +239,10 @@
                 <td style="width: 40%;">: {{ order.customer }}</td>
                 
                 <td class="label-bold" style="width: 13%;">No. Order</td>
-                <td style="width: 20%;">: {{ order.no_order }}</td>
-                <td class="label-bold" style="width: 10%;">Karyawan</td>
-                <td style="width: 7%;">: SALMA </td>
+                <td style="width: 20%;">: <span id="pdf-no-order">{{ order.no_order }}</span></td>
+                
+                <td class="label-bold" style="width: 10%; white-space: nowrap;">Karyawan</td>
+                <td style="width: 7%; white-space: nowrap;">: SALMA </td>
             </tr>
             <tr>
                 <td></td>
@@ -226,20 +256,20 @@
 
         <table class="main-table">
             <thead>
-                <tr>
-                    <th class="border-double-bottom" style="width: 5%; text-align: center;">No.</th>
-                    <th class="border-double-bottom" style="width: 15%;">Kode Produk</th>
-                    <th class="border-double-bottom" style="width: 30%;">Produk</th>
-                    <th class="border-double-bottom" style="width: 25%;">Nama Item</th>
-                    <th class="border-double-bottom" style="width: 10%;">Qty</th>
-                    <th class="border-double-bottom" style="width: 15%;">Ukuran</th>
-                </tr>
-            </thead>
+        <tr>
+            <th class="border-double-bottom" style="width: 5%; white-space: nowrap; text-align: center;">No.</th>
+            <th class="border-double-bottom" style="width: 22%; white-space: nowrap; text-align: left; padding-right: 15px;">Kode Produk</th>
+            <th class="border-double-bottom" style="width: 30%; white-space: nowrap; text-align: left;">Produk</th>
+            <th class="border-double-bottom" style="width: 26%;">Nama Item</th>
+            <th class="border-double-bottom" style="width: 6%; text-align: center;">Qty</th>
+            <th class="border-double-bottom" style="width: 18%; white-space: nowrap; text-align: center;">Ukuran</th>
+        </tr>
+    </thead>
             <tbody>
                 {% for item in order.items.all %}
                 <tr>
                     <td style="text-align: center;">{{ forloop.counter }}</td>
-                    <td>{{ item.kode_item }}</td>
+                    <td style="white-space: nowrap;">{{ item.kode_item }}</td>
                     <td>
                         <div>{{ item.nama_item }}</div>
                         
@@ -300,25 +330,44 @@ function cetakSPK() {
 }
 
 function downloadSPK() {
-    // 1. Sembunyikan tombol no-print-area secara paksa sesaat sebelum html2pdf membaca layout screen
+    // 1. Sembunyikan area tombol agar tidak ikut masuk ke PDF
     const tombolArea = document.querySelector('.no-print-area');
     if (tombolArea) tombolArea.style.setProperty('display', 'none', 'important');
 
-    // Cari elemen utama dokumen SPK Mas (misal bungkus area cetak dengan id="area-spk")
+    // 2. Tembak langsung elemen utama SPK Mas
     const element = document.getElementById('area-spk') || document.body;
+
+    const elNoOrder = document.getElementById('pdf-no-order');
+    let namaFileCustom = 'SPK-Order.pdf'; // Nama default jika tidak ketemu
     
-    // Konfigurasi file PDF yang akan dihasilkan
+    if (elNoOrder) {
+        // Ambil teks nomor order lalu bersihkan spasi di awal/akhir jika ada
+        const noOrderText = elNoOrder.innerText.trim();
+        namaFileCustom = `SPK-${noOrderText}.pdf`;
+    }
+
+    // 3. ATUR OPSI KHUSUS AGAR PAS DENGAN RESOLUSI DOCKING KERTAS
     const opsi = {
-        margin:       0.5,
-        filename:     'SPK-Order.pdf',
+        margin:       [0.3, 0.4, 0.3, 0.4], 
+        filename:     namaFileCustom, // <-- KUNCI: Nama file sekarang otomatis berubah dinamis
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true }, 
+        html2canvas:  { 
+            scale: 2,               
+            useCORS: true,
+            logging: false,
+            scrollX: 0,
+            scrollY: 0
+        }, 
         jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
     };
 
-    // Jalankan fungsi download, lalu kembalikan tampilan tombol setelah proses generate selesai
+    // 4. JALANKAN PROSES DOWNLOAD
     html2pdf().set(opsi).from(element).save().then(() => {
-        if (tombolArea) tombolArea.style.display = 'flex'; // Munculkan kembali tombol di layar komputer mas
+        // Tampilkan kembali tombol setelah download selesai
+        if (tombolArea) tombolArea.style.display = 'flex'; 
+    }).catch((err) => {
+        console.error(err);
+        if (tombolArea) tombolArea.style.display = 'flex'; 
     });
 }
 </script>
