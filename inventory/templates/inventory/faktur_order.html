@@ -20,7 +20,6 @@
             max-width: 950px;
             margin: 0 auto 15px auto;
             display: flex;
-            justify-content: space-between;
         }
         .btn {
             padding: 8px 16px;
@@ -113,7 +112,8 @@
         
         /* --- Tabel Item Pekerjaan --- */
         .main-table {
-            width: 100%;
+            width: 100% !important;
+            table-layout: fixed;
             border-collapse: collapse;
             margin-top: 10px;
         }
@@ -124,6 +124,12 @@
             border-top: 1px solid #000000;
             border-bottom: 1px solid #000000;
             font-size: 12px;
+        }
+
+        .main-table th, .main-table td {
+            padding: 6px 8px;
+            vertical-align: top;
+            box-sizing: border-box;
         }
         /* Garis ganda tipis di header sesuai gambar */
         .border-double-bottom {
@@ -184,14 +190,14 @@
 </head>
 <body>
     <div class="no-print-area" style="margin-left: 435px; margin-bottom: 10px;">
-        <div style ="margin-right: 10px;">
-            <button class="btn btn-print" onclick="window.print();">
-                🖨️ Print {% if is_faktur_lunas %}Faktur {% else %}Faktur Order{% endif %}
+        <div style="margin-right: 10px;">
+            <button class="btn btn-print" onclick="cetakFaktur();">
+                🖨️ Print {% if is_faktur_lunas %}Faktur{% else %}Faktur Order{% endif %}
             </button>
         </div>
         <div>
-            <button class="btn btn-print" onclick="downloadSPK();">
-                🖨️ Print {% if is_faktur_lunas %}Faktur {% else %}Faktur Order{% endif %}
+            <button class="btn btn-print" onclick="downloadFaktur();">
+                💾 Save {% if is_faktur_lunas %}Faktur{% else %}Faktur Order{% endif %}
             </button>
         </div>
     </div>
@@ -232,10 +238,12 @@
             <tr style = "font-size: 13px;">
                 <td class="label-bold" style="width: 10%;">Customer</td>
                 <td style="width: 40%;">: {{ order.customer }}</td>
+
                 <td class="label-bold" style="width: 13%;">No. Order</td>
-                <td style="width: 20%;">: {{ order.no_order }}</td>
-                <td class="label-bold" style="width: 10%;">Karyawan</td>
-                <td style="width: 7%;">: SALMA </td>
+                <td style="width: 20%;"> <span id="pdf-no-order">{{ order.no_order }}</span></td>
+                                                
+                <td class="label-bold" style="width: 10%; white-space: nowrap;">Karyawan</td>
+                <td style="width: 7%; white-space: nowrap;">: SALMA </td>
             </tr>
             <tr style = "font-size: 13px;">
                 <td></td>
@@ -250,30 +258,29 @@
         <table class="main-table">
             <thead>
                 <tr>
-                    <th class="border-double-bottom" style="width: 5%; text-align: center;">No.</th>
-                    <th class="border-double-bottom" style="width: 15%;">Kode Produk</th>
-                    <th class="border-double-bottom" style="width: 30%;">Produk</th>
-                    <th class="border-double-bottom" style="width: 25%;">Nama Item</th>
-                    <th class="border-double-bottom" style="width: 10%;">Qty</th>
-                    <th class="border-double-bottom" style="width: 15%;">Ukuran</th>
-                    <th class="border-double-bottom" style="width: 15%;">SubTotal</th>
+                    <th class="border-double-bottom" style="width: 4%; text-align: center;">No.</th>
+                    <th class="border-double-bottom" style="width: 20%; white-space: nowrap; text-align: left; padding-right: 15px;">Kode Produk</th>
+                    <th class="border-double-bottom" style="width: 25%; white-space: nowrap; text-align: left;">Produk</th>
+                    <th class="border-double-bottom" style="width: 20%;">Nama Item</th>
+                    <th class="border-double-bottom" style="width: 5%; text-align: center;">Qty</th>
+                    <th class="border-double-bottom" style="width: 13%; white-space: nowrap; text-align: center;">Ukuran</th>
+                    <th class="border-double-bottom" style="width: 13%; white-space: nowrap; text-align: right;">SubTotal</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in order.items.all %}
                 <tr>
                     <td style="text-align: center;">{{ forloop.counter }}</td>
-                    <td style="font-size: 13px;">{{ item.kode_item}}</td>
-                    <td>{{ item.nama_item }}
-                    </td>
+                    <td style="font-size: 13px; white-space: nowrap; padding-right: 15px;">{{ item.kode_item }}</td>
+                    <td>{{ item.nama_item }}</td>
                     <td>{{ item.produk.nama|default:item.nama_pesanan }}</td>
-                    <td>{{ item.qty }}</td>
-                    <td>{{ item.panjang }} x {{ item.lebar }}</td>
-                    <td>{{ item.total|floatformat:"0"|intcomma }}</td>
+                    <td style="text-align: center;">{{ item.qty }}</td>
+                    <td style="text-align: center; white-space: nowrap;">{{ item.panjang }} x {{ item.lebar }}</td>
+                    <td style="text-align: right; white-space: nowrap;">{{ item.total|floatformat:"0"|intcomma }}</td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" style="text-align: center; color: #9ca3af; padding: 20px;">
+                    <td colspan="7" style="text-align: center; color: #9ca3af; padding: 20px;">
                         Belum ada item pekerjaan untuk order ini.
                     </td>
                 </tr>
@@ -332,6 +339,8 @@
 </body>
 </html>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
 <script>
 function cetakFaktur() {
     const hariIni = new Date();
@@ -341,7 +350,51 @@ function cetakFaktur() {
     const mm = String(hariIni.getMonth() + 1).padStart(2, '0');
     const yyyy = hariIni.getFullYear();
     
-    document.getElementById('tgl-cetak-isi').innerText = `${jam}:${menit}, ${dd}-${mm}-${yyyy}`;
+    const tglIsi = document.getElementById('tgl-cetak-isi');
+    if (tglIsi) {
+        tglIsi.innerText = `${jam}:${menit}, ${dd}-${mm}-${yyyy}`;
+    }
     window.print();
+}
+
+function downloadFaktur() {
+    // 1. Sembunyikan area tombol agar tidak masuk ke PDF
+    const tombolArea = document.querySelector('.no-print-area');
+    if (tombolArea) tombolArea.style.setProperty('display', 'none', 'important');
+
+    // 2. Tembak elemen utama area Faktur Mas (Ganti 'area-spk' menjadi 'area-faktur' jika id-nya berbeda)
+    const element = document.getElementById('area-faktur') || document.getElementById('area-spk') || document.body;
+
+    // 3. TENTUKAN NAMA FILE SECARA DINAMIS (Faktur / Faktur-Order + No Order)
+    const elNoOrder = document.getElementById('pdf-no-order');
+    const noOrderText = elNoOrder ? elNoOrder.innerText.trim() : 'Document';
+    
+    // Logika penamaan berdasarkan status lunas dari Django
+    let tipeDokumen = "{% if is_faktur_lunas %}Faktur{% else %}Faktur-Order{% endif %}";
+    let namaFileCustom = `${tipeDokumen}-${noOrderText}.pdf`;
+
+    // 4. SETTING KONFIGURASI HTML2PDF (Sama aman & presisinya dengan setingan SPK)
+    const opsi = {
+        margin:       [0.3, 0.4, 0.3, 0.4], 
+        filename:     namaFileCustom,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { 
+            scale: 2,               
+            useCORS: true,
+            logging: false,
+            scrollX: 0,
+            scrollY: 0
+        }, 
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    // 5. JALANKAN PROSES DOWNLOAD
+    html2pdf().set(opsi).from(element).save().then(() => {
+        // Tampilkan kembali tombol setelah download selesai
+        if (tombolArea) tombolArea.style.display = 'flex'; 
+    }).catch((err) => {
+        console.error(err);
+        if (tombolArea) tombolArea.style.display = 'flex'; 
+    });
 }
 </script>
