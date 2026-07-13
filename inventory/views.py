@@ -8,9 +8,8 @@ from django.http import JsonResponse
 from .models import Suplier, Customer,List_Stok,JenisBarang, HargaStok, HargaJual, HargaJualBahan, ArusStok, OrderUtama, OrderDetail, PiutangPelanggan, CicilanPiutang, Transaksi, Hutang, Kegiatan, StokOpname
 from django.db import transaction
 from django.utils import timezone
-from decimal import Decimal
+from decimal import Decimal,ROUND_HALF_UP
 import json
-from decimal import Decimal
 from datetime import datetime
 from django.core.paginator import Paginator
 
@@ -566,6 +565,7 @@ def log_arus_stok(request):
     end_date = request.GET.get('end_date')
     status_filter = request.GET.get('status', 'Semua')
     hari_ini = timezone.now().date()
+    
     arus_stok_list = ArusStok.objects.all().select_related('barang', 'suplier')
 
     if start_date and end_date:
@@ -593,11 +593,77 @@ def log_arus_stok(request):
             arus_stok_list = arus_stok_list.filter(jenis_arus__iexact='Pemakaian')
 
     arus_stok_list = arus_stok_list.order_by('-tanggal')
+
+    baris_tabel_gabung = []
+    nota_pembelian_terproses = set() 
+
+    for arus in arus_stok_list:
+        if arus.jenis_arus == 'Pemakaian':
+            baris_tabel_gabung.append({
+                'id': arus.id,
+                'tanggal': arus.tanggal,
+                'jenis_arus': arus.jenis_arus,
+                'kode_barang_tampil': arus.barang.kode_barang if arus.barang else '-',
+                'nama_barang_tampil': arus.barang.nama_barang if arus.barang else '-',
+                'qty_tampil': f"{arus.qty_arus} Pcs",
+                'keterangan': arus.keterangan_arus or '-',
+                'suplier_nama': '-',
+                'harga': 0,
+                'pembayaran': 0,
+                'sisa': 0,
+                'tenggat': '-'
+            })
+        elif arus.jenis_arus == 'Pembelian':
+            key_nota = f"{arus.suplier_id}_{arus.keterangan_arus}_{arus.tanggal.strftime('%Y%m%d%H%M%S')}"
+            
+            if key_nota not in nota_pembelian_terproses:
+                nota_pembelian_terproses.add(key_nota)
+                
+                items_serumpun = arus_stok_list.filter(
+                    suplier=arus.suplier,
+                    keterangan_arus=arus.keterangan_arus,
+                    jenis_arus='Pembelian',
+                    tanggal=arus.tanggal
+                )
+                
+                total_qty_nota = sum(item.qty_arus for item in items_serumpun)
+                total_biaya_nota = sum(item.qty_arus * item.harga_satuan for item in items_serumpun)
+                total_bayar_nota = sum(item.pembayaran for item in items_serumpun)
+                total_sisa_nota = total_biaya_nota - total_bayar_nota
+                
+                jumlah_item = items_serumpun.count()
+                item_pertama = items_serumpun.first() 
+                
+                if item_pertama and item_pertama.barang:
+                    kode_barang_tampil = item_pertama.barang.kode_barang
+                    nama_barang_tampil = item_pertama.barang.nama_barang
+                    
+                    if jumlah_item > 1:
+                        nama_barang_tampil += f" (+{jumlah_item - 1} item lainnya)"
+                else:
+                    kode_barang_tampil = "-"
+                    nama_barang_tampil = "-"
+                
+                baris_tabel_gabung.append({
+                    'id': arus.id,
+                    'tanggal': arus.tanggal,
+                    'jenis_arus': arus.jenis_arus,
+                    'kode_barang_tampil': kode_barang_tampil,
+                    'nama_barang_tampil': nama_barang_tampil, 
+                    'qty_tampil': f"{total_qty_nota} Pcs",      
+                    'keterangan': arus.keterangan_arus or '-',
+                    'suplier_nama': arus.suplier.nama_suplier if arus.suplier else '-',
+                    'harga': total_biaya_nota,
+                    'pembayaran': total_bayar_nota,
+                    'sisa': total_sisa_nota if total_sisa_nota > 0 else 0,
+                    'tenggat': arus.tenggat_pembayaran.strftime('%Y-%m-%d') if arus.tenggat_pembayaran else '-'
+                })
+
     semua_barang = List_Stok.objects.all().order_by('nama_barang')
     semua_suplier = Suplier.objects.all().order_by('nama_suplier')
 
     context = {
-        'arus_stok_list': arus_stok_list,
+        'arus_stok_list': baris_tabel_gabung,  
         'semua_barang': semua_barang,
         'semua_suplier': semua_suplier,
         'query': query,
@@ -609,74 +675,114 @@ def log_arus_stok(request):
     }
     return render(request, 'inventory/arus_stok.html', context)
 
-
 def tambah_arus_stok(request):
     if request.method == "POST":
         v_jenis_arus = request.POST.get('jenis_arus')      
-        v_barang_id = request.POST.get('barang')         
-        v_qty = request.POST.get('qty_arus')             
         v_keterangan = request.POST.get('keterangan_arus')
         v_suplier_id = request.POST.get('suplier')       
-        v_harga = request.POST.get('harga_satuan')        
         v_pembayaran = request.POST.get('pembayaran')
         v_tenggat = request.POST.get('tenggat_pembayaran')
-
-        if not v_jenis_arus or not v_barang_id or not v_qty:
-            messages.error(request, "Gagal! Data barang dan kuantitas wajib diisi.")
-            return redirect('log_arus_stok') 
+        v_tanggal_custom = request.POST.get('tanggal')
 
         try:
             with transaction.atomic():
-                barang = List_Stok.objects.get(id=v_barang_id)
-                qty_arus = float(v_qty)
-                suplier_obj = None
-                harga_satuan = 0
-                pembayaran = 0
-                tenggat_pembayaran = None
+                
+                waktu_transaksi = v_tanggal_custom if v_tanggal_custom else timezone.now()
                 
                 if v_jenis_arus == 'Pemakaian':
-                    if float(barang.qty) < qty_arus:
-                        raise ValueError(f"Stok '{barang.nama_barang}' tidak mencukupi. Stok saat ini hanya {barang.qty} pcs, sedangkan Anda menginput {qty_arus} pcs.")
+                    v_barang_id = request.POST.get('barang')
+                    v_qty = request.POST.get('qty_arus')
                     
-                    barang.qty = float(barang.qty) - qty_arus
+                    if not v_barang_id or not v_qty:
+                        raise ValueError("Barang dan kuantitas pemakaian wajib diisi.")
+                        
+                    barang = List_Stok.objects.get(id=v_barang_id)
+                    qty_arus = int(v_qty)
+                    
+                    if int(barang.qty) < qty_arus:
+                        raise ValueError(f"Stok '{barang.nama_barang}' tidak mencukupi.")
+                    
+                    barang.qty = int(barang.qty) - qty_arus
+                    barang.save()
+
+                    ArusStok.objects.create(
+                        tanggal=waktu_transaksi,
+                        barang=barang,
+                        jenis_arus=v_jenis_arus,
+                        qty_arus=qty_arus,
+                        keterangan_arus=v_keterangan,
+                        suplier=None,
+                        harga_satuan=0,
+                        pembayaran=0,
+                        tenggat_pembayaran=None
+                    )
+                    messages.success(request, f"Berhasil mencatat pemakaian barang.")
 
                 elif v_jenis_arus == 'Pembelian':
-                    harga_satuan = float(v_harga or 0)
-                    pembayaran = float(v_pembayaran or 0)
-                    if v_tenggat:
-                        tenggat_pembayaran = v_tenggat
+                    arr_barang_id = request.POST.getlist('arr_barang_id[]')
+                    arr_qty = request.POST.getlist('arr_qty[]')
+                    arr_harga = request.POST.getlist('arr_harga[]')
+
+                    if not arr_barang_id or not v_suplier_id:
+                        raise ValueError("Supplier dan minimal 1 item barang pembelian wajib diisi.")
+
+                    suplier_obj = Suplier.objects.get(id=v_suplier_id)
+                    v_pembayaran_bersih = v_pembayaran.strip() if v_pembayaran else ""
+                    pembayaran_total = Decimal(v_pembayaran_bersih) if v_pembayaran_bersih else Decimal('0')
+                    tenggat_pembayaran = v_tenggat if v_tenggat else None
+                    grand_total_pembelian = Decimal('0')
+                    list_data_item = []
+
+                    for i in range(len(arr_barang_id)):
+                        b_id = arr_barang_id[i]
+                        qty = int(arr_qty[i])
+                        harga = Decimal(arr_harga[i] or 0)
                         
-                    if v_suplier_id:
-                        suplier_obj = Suplier.objects.get(id=v_suplier_id)
-                    
-                    barang.qty = float(barang.qty) + qty_arus
-                
-                barang.save()
+                        if b_id:
+                            barang_obj = List_Stok.objects.get(id=b_id)
+                            grand_total_pembelian += (qty * harga)
+                            list_data_item.append({
+                                'obj_barang': barang_obj,
+                                'qty': qty,
+                                'harga': harga
+                            })
 
-                ArusStok.objects.create(
-                    barang=barang,
-                    jenis_arus=v_jenis_arus,
-                    qty_arus=qty_arus,
-                    keterangan_arus=v_keterangan,
-                    suplier=suplier_obj,
-                    harga_satuan=harga_satuan,
-                    pembayaran=pembayaran,
-                    tenggat_pembayaran=tenggat_pembayaran
-                )
+                    for item in list_data_item:
+                        brg = item['obj_barang']
+                        q_arus = item['qty']
+                        h_satuan = item['harga']
+                        total_item = q_arus * h_satuan
 
-                messages.success(request, f"Berhasil mencatat {v_jenis_arus} untuk barang: {barang.nama_barang}.")
+                        if pembayaran_total >= grand_total_pembelian:
+                            item_pembayaran = total_item
+                        else:
+                            if grand_total_pembelian > 0:
+                                item_pembayaran = (pembayaran_total * total_item) / grand_total_pembelian
+                                item_pembayaran = item_pembayaran.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                            else:
+                                item_pembayaran = Decimal('0')
 
-        except List_Stok.DoesNotExist:
-            messages.error(request, "Gagal! Data barang tidak ditemukan di sistem.")
-        except Suplier.DoesNotExist:
-            messages.error(request, "Gagal! Data Supplier tidak valid.")
-        except ValueError as e:
-            messages.error(request, f"Gagal! {str(e)}")
+                        brg.qty = int(brg.qty) + q_arus
+                        brg.save()
+
+                        ArusStok.objects.create(
+                            tanggal=waktu_transaksi,
+                            barang=brg,
+                            jenis_arus=v_jenis_arus,
+                            qty_arus=q_arus,
+                            keterangan_arus=v_keterangan,
+                            suplier=suplier_obj,
+                            harga_satuan=h_satuan,
+                            pembayaran=item_pembayaran,
+                            tenggat_pembayaran=tenggat_pembayaran
+                        )
+
+                    messages.success(request, f"Berhasil memborong {len(list_data_item)} item barang dari supplier {suplier_obj.nama_suplier}.")
+
         except Exception as e:
-            messages.error(request, f"Terjadi kesalahan sistem: {str(e)}")
+            messages.error(request, f"Gagal memproses transaksi: {str(e)}")
 
     return redirect('log_arus_stok')
-
 
 def edit_arus_stok(request, pk):
     if request.method == "POST":
@@ -711,6 +817,60 @@ def edit_arus_stok(request, pk):
 
     return redirect('log_arus_stok')
 
+def detail_arus_stok(request, pk):
+    try:
+        target_arus = ArusStok.objects.get(id=pk)
+        
+        if target_arus.jenis_arus == 'Pemakaian':
+            data = {
+                'jenis_arus': 'Pemakaian',
+                'barang_nama': target_arus.barang.nama_barang if target_arus.barang else '-',
+                'qty_arus': target_arus.qty_arus,
+                'keterangan_arus': target_arus.keterangan_arus or '-',
+            }
+            return JsonResponse({'status': 'success', 'data': data})
+        
+        semua_item_nota = ArusStok.objects.filter(
+            suplier=target_arus.suplier,
+            keterangan_arus=target_arus.keterangan_arus,
+            jenis_arus='Pembelian',
+            tanggal=target_arus.tanggal 
+        ).select_related('barang')
+
+        grand_total = 0
+        total_pembayaran = 0
+        items_list = []
+
+        for item in semua_item_nota:
+            total_baris = float(item.qty_arus) * float(item.harga_satuan)
+            grand_total += total_baris
+            total_pembayaran += float(item.pembayaran or 0)
+            
+            items_list.append({
+                'barang_nama': item.barang.nama_barang if item.barang else '-',
+                'qty_arus': item.qty_arus,
+                'harga_satuan': float(item.harga_satuan),
+                'total_baris': total_baris
+            })
+
+        sisa_hutang = grand_total - total_pembayaran
+
+        data = {
+            'jenis_arus': 'Pembelian',
+            'suplier_nama': target_arus.suplier.nama_suplier if target_arus.suplier else '-',
+            'keterangan_arus': target_arus.keterangan_arus or '-',
+            'pembayaran': total_pembayaran,
+            'sisa_hutang': sisa_hutang if sisa_hutang > 0 else 0,
+            'tenggat_pembayaran': target_arus.tenggat_pembayaran.strftime('%Y-%m-%d') if target_arus.tenggat_pembayaran else '-',
+            'items': items_list
+        }
+
+        return JsonResponse({'status': 'success', 'data': data})
+
+    except ArusStok.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Data tidak ditemukan'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 def hapus_arus_stok(request, pk):
     try:
@@ -858,7 +1018,7 @@ def tambah_order(request):
                         harga_jual=float(item.get('harga_jual', 0) if item.get('harga_jual') != '-' else 0),
                         jasa_desain=0.0,
                         biaya_lain=0.0,
-                        total=float(item.get('total', 0)), # Nilai total tetap tersimpan akurat ke database
+                        total=float(item.get('total', 0)),
                         keterangan=item.get('keterangan', '-')
                     )
                 messages.success(request, f"Order {v_no_order} berhasil disimpan dengan seluruh itemnya!")
@@ -947,7 +1107,7 @@ def edit_order(request, order_id):
             nama_order = request.POST.get('nama_order')         
             status = request.POST.get('status')                 
             keterangan = request.POST.get('keterangan')         
-            v_tgl_order = request.POST.get('tgl_order') # <-- 1. AMBIL DATA TANGGAL DARI INPUT FORM HTML
+            v_tgl_order = request.POST.get('tgl_order')  
             
             total_harga_raw = request.POST.get('total_harga', '0')
             uang_muka_raw = request.POST.get('uang_muka', '0')
@@ -974,7 +1134,6 @@ def edit_order(request, order_id):
             if nama_order:
                 order_utama.nama_order = nama_order
             
-            # --- 2. UPDATE TANGGAL ORDER JIKA INPUTNYA ADA ---
             if v_tgl_order:
                 order_utama.tgl_order = v_tgl_order
 
@@ -987,7 +1146,6 @@ def edit_order(request, order_id):
             order_utama.save() 
             
             if items_json_data:
-                # Hapus detail lama dan masukkan detail baru yang telah di-edit dari tabel kanan
                 OrderDetail.objects.filter(order_utama=order_utama).delete()
                 for item in items_list:
                     OrderDetail.objects.create(
@@ -1353,23 +1511,20 @@ def hapus_stok_opname(request, pk):
 
 #====================faktur=======================
 def faktur_lunas(request, order_id):
-    # 1. Ambil data order utama
     order_obj = get_object_or_404(OrderUtama, id=order_id)
     
-    # 2. VALIDASI: Jika sisa bayar masih lebih besar dari 0, blokir akses
     if order_obj.sisa_bayar > 0:
         messages.error(
             request, 
             f"Gagal membuka Faktur! Order {order_obj.no_order} belum lunas. "
             f"Sisa kekurangan masih Rp {int(order_obj.sisa_bayar):,}".replace(',', '.')
         )
-        return redirect('list_order') # Kembalikan ke halaman list order
+        return redirect('list_order')
         
-    # 3. Jika lolos validasi (Sisa Bayar == 0), tampilkan template faktur yang sama
     context = {
         'order': order_obj,
         'tgl_cetak_sekarang': timezone.now(),
-        'is_faktur_lunas': True # Penanda di HTML jika sewaktu-waktu butuh membedakan judul nota
+        'is_faktur_lunas': True
     }
     return render(request, 'inventory/faktur_order.html', context)
 

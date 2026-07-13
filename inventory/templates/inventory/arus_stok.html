@@ -67,31 +67,32 @@
                             style="cursor: pointer;"
                             data-id="{{ a.id }}"
                             data-tanggal="{{ a.tanggal|date:'l, d F Y' }}"
-                            data-nama="{{ a.barang.nama_barang }}"
+                            data-nama="{{ a.nama_barang_tampil }}"
                             data-jenis="{{ a.jenis_arus }}"
-                            data-qty="{{ a.qty_arus }}"
-                            data-keterangan="{{ a.keterangan_arus|default:'' }}"
-                            data-suplier-id="{{ a.suplier.id|default:'' }}"
-                            data-suplier-nama="{{ a.suplier.nama_suplier|default:'' }}"
-                            data-harga="{{ a.harga_satuan|stringformat:'.2f'|default:0 }}"
+                            data-qty="{{ a.qty_tampil }}"
+                            data-keterangan="{{ a.keterangan }}"
+                            data-suplier-nama="{{ a.suplier_nama }}"
+                            data-harga="{{ a.harga|stringformat:'.2f' }}"
+                            data-pembayaran="{{ a.pembayaran|stringformat:'.2f' }}"
+                            data-sisa="{{ a.sisa|stringformat:'.2f' }}"
+                            data-tenggat="{{ a.tenggat }}">
                             
-                            data-pembayaran="{{ a.pembayaran|stringformat:'.2f'|default:0 }}"
-                            data-sisa="{{ a.sisa_pembayaran|stringformat:'.2f'|default:0 }}"
-                            data-tenggat="{% if a.tenggat_pembayaran %}{{ a.tenggat_pembayaran|date:'Y-m-d' }}{% else %}-{% endif %}">
                             <td>{{ forloop.counter }}</td>
                             <td>{{ a.tanggal|date:"l, d F Y" }}</td>
                             <td>
                                 {% if a.jenis_arus == 'Pembelian' %}
-                                    Pembelian 
+                                    <span>Pembelian</span>
                                 {% else %}
-                                    Pemakaian 
+                                    <span>Pemakaian</span>
                                 {% endif %}
                             </td>
-                            <td>{{ a.barang.kode_barang }}</td>
-                            <td>{{ a.barang.nama_barang }}</td>
-                            <td class="text-center">{{ a.qty_arus }}</td>
-                           <td class="text-center">
-                                <a href="javascript:void(0)" onclick="hapusArusStok('{{ a.id }}', '{{ a.barang.nama_barang|escapejs }}', '{{ a.jenis_arus }}', '{{ a.qty_arus }}')" class="text-danger">
+                            
+                            <td>{{ a.kode_barang_tampil|default:'-' }}</td>
+                            
+                            <td>{{ a.nama_barang_tampil }}</td>
+                            <td class="text-center">{{ a.qty_tampil }}</td>
+                            <td class="text-center" onclick="event.stopPropagation();">
+                                <a href="javascript:void(0)" onclick="hapusArusStok('{{ a.id }}', '{{ a.nama_barang_tampil|escapejs }}', '{{ a.jenis_arus }}', '{{ a.qty_tampil }}')" class="text-danger">
                                     <i class="bi bi-trash-fill"></i>
                                 </a>
                             </td>
@@ -109,24 +110,23 @@
 </div>
 
 <div class="modal fade" id="tambahArusModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered"> 
-        <div class="modal-content custom-modal-style">
+    <div class="modal-dialog modal-dialog-centered modal-lg"> <div class="modal-content custom-modal-style">
             <button type="button" class="custom-close-btn" data-bs-dismiss="modal">
                 <i class="bi bi-x-circle-fill"></i>
             </button>
             <div class="modal-body p-4">
                 <h2 class="text-center fw-bold mb-4" id="modalTitle">Tambah Arus Barang</h2>                        
                 
-                <form action="{% url 'tambah_arus_stok' %}" method="POST">
+                <form action="{% url 'tambah_arus_stok' %}" method="POST" id="formTambahArus">
                     {% csrf_token %}
                     <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Hari/Tanggal</label>
-                        <div class="col-sm-8"><input type="date" class="form-control border-dark" name="tanggal"></div>
+                        <label class="col-sm-3 col-form-label fw-bold">Hari/Tanggal</label>
+                        <div class="col-sm-9"><input type="date" class="form-control border-dark" name="tanggal" required></div>
                     </div>
 
                     <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Jenis Arus</label>
-                        <div class="col-sm-8">
+                        <label class="col-sm-3 col-form-label fw-bold">Jenis Arus</label>
+                        <div class="col-sm-9">
                             <select class="form-select border-dark" id="selectJenisArus" name="jenis_arus">
                                 <option value="Pemakaian" selected>Pemakaian</option>
                                 <option value="Pembelian">Pembelian</option>
@@ -137,8 +137,8 @@
                     <div id="dynamicFormFields"></div>
 
                     <div class="d-flex justify-content-center gap-3 mt-4">
-                        <button type="submit" class="btn-tambah-modal">Simpan</button>
-                        <button type="reset" class="btn-hapus-modal">Reset</button>
+                        <button type="submit" class="btn-tambah-modal">Simpan Transaksi</button>
+                        <button type="button" class="btn-hapus-modal" data-bs-dismiss="modal">Batal</button>
                     </div>
                 </form>
             </div>
@@ -369,9 +369,11 @@ function formatRibuan(angka) {
     return nilai.toLocaleString('id-ID');
 }
 
-function dapatkanAngkaMurni(str) {
-    if (!str) return 0;
-    return parseInt(String(str).replace(/\./g, '')) || 0;
+function dapatkanAngkaMurni(nilai) {
+    if (!nilai) return 0;
+    // Menghilangkan semua karakter selain angka (menghapus titik ribuan)
+    let murni = nilai.replace(/[^0-9]/g, '');
+    return murni ? parseInt(murni) : 0;
 }
 
 // =========================================================================
@@ -406,89 +408,314 @@ function hitungFinansialArus() {
 // =========================================================================
 const selectJenisArus = document.getElementById('selectJenisArus');
 const dynamicFields = document.getElementById('dynamicFormFields');
+let itemRowCounter = 0; // Counter unik untuk ID element baris baru
 
 function updateFormFields() {
     if (!selectJenisArus || !dynamicFields) return;
     
     const jenis = selectJenisArus.value;
-    let htmlContent = '';
-
-    const baseFields = `
-        <div class="mb-3 row">
-            <label class="col-sm-4 col-form-label fw-bold">Pilih Barang</label>
-            <div class="col-sm-8">
-                <input type="text" class="form-control border-dark" id="arus-pilih-barang" list="data-barang-list" placeholder="Ketik nama barang..." autocomplete="off" required>
-                <input type="hidden" name="barang" id="arus-barang-id-hidden">
-            </div>
-        </div>
-        <div class="mb-3 row">
-            <label class="col-sm-4 col-form-label fw-bold">Kode Barang</label>
-            <div class="col-sm-8">
-                <input type="text" class="form-control border-dark bg-light" id="arus-kode-barang" name="kode_Barang" readonly placeholder="Otomatis terisi">
-            </div>
-        </div>
-        <div class="mb-3 row">
-            <label class="col-sm-4 col-form-label fw-bold">Keterangan Arus</label>
-            <div class="col-sm-8">
-                <input type="text" class="form-control border-dark" name="keterangan_arus" placeholder="Opsional (misal: Keperluan cetak)">
-            </div>
-        </div>
-        <div class="mb-3 row">
-            <label class="col-sm-4 col-form-label fw-bold">Kuantitas (QTY)</label>
-            <div class="col-sm-8">
-                <input type="number" class="form-control border-dark" name="qty_arus" id="arus-qty" min="1" placeholder="0" required>
-            </div>
-        </div>
-    `;
-
+    itemRowCounter = 0; // reset counter
+    
     if (jenis === 'Pemakaian') {
-        htmlContent = baseFields;
-    } else if (jenis === 'Pembelian') {
-        htmlContent = baseFields + `
+        dynamicFields.innerHTML = `
             <div class="mb-3 row">
-                <label class="col-sm-4 col-form-label fw-bold">Supplier</label>
-                <div class="col-sm-8">
-                    <input type="text" class="form-control border-dark" id="arus-pilih-suplier" list="data-suplier-list" placeholder="Ketik nama supplier..." autocomplete="off" required>
-                    <input type="hidden" name="suplier" id="arus-suplier-id-hidden">
+                <label class="col-sm-3 col-form-label fw-bold">Pilih Barang</label>
+                <div class="col-sm-9">
+                    <input type="text" class="form-control border-dark" id="arus-pilih-barang" list="data-barang-list" placeholder="Ketik nama barang..." autocomplete="off" required>
+                    <input type="hidden" name="barang" id="arus-barang-id-hidden">
                 </div>
             </div>
             <div class="mb-3 row">
-                <label class="col-sm-4 col-form-label fw-bold">Harga Satuan (@)</label>
-                <div class="col-sm-8">
-                    <input type="text" class="form-control border-dark input-format-rupiah" name="harga_satuan" id="arus-harga" placeholder="0" required>
+                <label class="col-sm-3 col-form-label fw-bold">Kode Barang</label>
+                <div class="col-sm-9">
+                    <input type="text" class="form-control border-dark bg-light" id="arus-kode-barang" readonly placeholder="Otomatis">
                 </div>
             </div>
             <div class="mb-3 row">
-                <label class="col-sm-4 col-form-label fw-bold">Total Biaya</label>
-                <div class="col-sm-8">
-                    <input type="text" class="form-control border-dark bg-light" id="arus-total" name="total_biaya" readonly placeholder="Otomatis terhitung">
+                <label class="col-sm-3 col-form-label fw-bold">Keterangan</label>
+                <div class="col-sm-9">
+                    <input type="text" class="form-control border-dark" name="keterangan_arus" placeholder="Keperluan pemakaian...">
                 </div>
             </div>
             <div class="mb-3 row">
-                <label class="col-sm-4 col-form-label fw-bold">Pembayaran</label>
-                <div class="col-sm-8">
-                    <input type="text" class="form-control border-dark input-format-rupiah" id="arus-pembayaran" name="pembayaran" placeholder="Masukkan jumlah uang dibayar">
-                </div>
-            </div>
-            <div class="mb-3 row">
-                <label class="col-sm-4 col-form-label fw-bold">Sisa Pembayaran</label>
-                <div class="col-sm-8">
-                    <input type="text" class="form-control bg-light border-dark" id="arus-sisa" name="sisa_pembayaran" readonly placeholder="Otomatis terhitung">
-                </div>
-            </div>
-            <div class="mb-3 row">
-                <label class="col-sm-4 col-form-label fw-bold">Tenggat Pembayaran</label>
-                <div class="col-sm-8">
-                    <input type="date" class="form-control border-dark" id="arus-tenggat" name="tenggat_pembayaran">
+                <label class="col-sm-3 col-form-label fw-bold">QTY Keluar</label>
+                <div class="col-sm-9">
+                    <input type="number" class="form-control border-dark" name="qty_arus" min="1" placeholder="0" required>
                 </div>
             </div>
         `;
+        initSingleBarangEvents();
+    } else if (jenis === 'Pembelian') {
+        dynamicFields.innerHTML = `
+            <div class="card p-3 mb-3 border-dark bg-light">
+                <div class="mb-3 row">
+                    <label class="col-sm-3 col-form-label fw-bold">Supplier</label>
+                    <div class="col-sm-9">
+                        <input type="text" class="form-control border-dark" id="arus-pilih-suplier" list="data-suplier-list" placeholder="Ketik nama supplier..." autocomplete="off" required>
+                        <input type="hidden" name="suplier" id="arus-suplier-id-hidden">
+                    </div>
+                </div>
+                <div class="mb-3 row">
+                    <label class="col-sm-3 col-form-label fw-bold">Keterangan Nota</label>
+                    <div class="col-sm-9">
+                        <input type="text" class="form-control border-dark" name="keterangan_arus" placeholder="Opsional (misal: Nota Restock Bulanan)">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="fw-bold mb-1">Jumlah Uang Dibayar</label>
+                        <input type="text" class="form-control border-dark input-format-rupiah" id="pembelian-pembayaran" name="pembayaran">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="fw-bold mb-1">Tenggat Pembayaran (Jika Hutang)</label>
+                        <input type="date" class="form-control border-dark" name="tenggat_pembayaran">
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered border-dark alignment-middle" id="tableItemPembelian">
+                    <thead class="table-dark text-center">
+                        <tr>
+                            <th style="width: 40%;">Nama Barang</th>
+                            <th style="width: 15%;">QTY</th>
+                            <th style="width: 20%;">Harga Satuan (@)</th>
+                            <th style="width: 20%;">Total</th>
+                            <th style="width: 5%;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyItemPembelian">
+                        </tbody>
+                </table>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary fw-bold mt-1" onclick="tambahBarisItemPembelian()">
+                ➕ Tambah Baris Barang
+            </button>
+
+            <div class="row mt-3 text-end justify-content-end">
+                <div class="col-md-4">
+                    <div class="fw-bold">Grand Total: <span id="text-grand-total">Rp 0</span></div>
+                    <div class="fw-bold text-danger">Sisa Hutang: <span id="text-sisa-hutang">Rp 0</span></div>
+                </div>
+            </div>
+        `;
+        initSupplierEvents();
+        tambahBarisItemPembelian(); // Otomatis kasih 1 baris pertama kosong
     }
-    
-    dynamicFields.innerHTML = htmlContent;
-    initArusFormEvents();
-    initRupiahFormatEvents(); 
 }
+
+// Fungsi Menambah Baris Baru di Tabel Pembelian
+function tambahBarisItemPembelian() {
+    itemRowCounter++;
+    const tbody = document.getElementById('tbodyItemPembelian');
+    const tr = document.createElement('tr');
+    tr.id = `row-item-${itemRowCounter}`;
+    
+    tr.innerHTML = `
+        <td>
+            <input type="text" class="form-control form-control-sm border-dark class-pilih-barang" placeholder="Ketik nama barang..." list="data-barang-list" required>
+            <input type="hidden" name="arr_barang_id[]" class="class-hidden-barang-id">
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm border-dark text-center class-qty" name="arr_qty[]" min="1" value="1" required>
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm border-dark text-end class-harga-satuan input-format-rupiah" name="arr_harga[]" placeholder="0" required>
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm bg-light border-dark text-end class-total-baris" readonly value="0">
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-danger p-1 line-height-1" onclick="hapusBarisItemPembelian(${itemRowCounter})">
+                <i class="bi bi-trash-fill"></i>
+            </button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+    initBarisBarangEvents(tr);
+}
+
+function hapusBarisItemPembelian(rowId) {
+    const row = document.getElementById(`row-item-${rowId}`);
+    if (document.querySelectorAll('#tbodyItemPembelian tr').length > 1) {
+        row.remove();
+        hitungTotalFinansialMulti();
+    } else {
+        alert("Minimal harus ada 1 item barang dalam pembelian!");
+    }
+}
+
+// Event handler untuk pengisian data otomatis per baris tabel barang
+function initBarisBarangEvents(rowElement) {
+    const inputBarang = rowElement.querySelector('.class-pilih-barang');
+    const hiddenId = rowElement.querySelector('.class-hidden-barang-id');
+    const inputHarga = rowElement.querySelector('.class-harga-satuan');
+    const inputQty = rowElement.querySelector('.class-qty');
+    const datalistBarang = document.getElementById('data-barang-list');
+
+    inputBarang.addEventListener('input', function() {
+        const options = datalistBarang.querySelectorAll('option');
+        let cocok = false;
+        options.forEach(opt => {
+            if (opt.value === inputBarang.value) {
+                hiddenId.value = opt.getAttribute('data-id');
+                cocok = true;
+                // Ambil harga otomatis dari supplier
+                cekHargaOtomatisBaris(rowElement);
+            }
+        });
+        if (!cocok) hiddenId.value = "";
+    });
+
+    // Format rupiah saat harga diketik manual
+    inputHarga.addEventListener('input', function() {
+        this.value = formatRibuan(this.value);
+        hitungTotalFinansialMulti();
+    });
+
+    inputQty.addEventListener('input', hitungTotalFinansialMulti);
+}
+
+function cekHargaOtomatisBaris(rowElement) {
+    const barangId = rowElement.querySelector('.class-hidden-barang-id').value;
+    const suplierId = document.getElementById('arus-suplier-id-hidden').value;
+    const inputHarga = rowElement.querySelector('.class-harga-satuan');
+
+    if (barangId && suplierId && inputHarga) {
+        fetch(`/stok/ambil-harga/?barang_id=${barangId}&suplier_id=${suplierId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success' && parseFloat(data.harga_satuan) > 0) {
+                    inputHarga.value = formatRibuan(data.harga_satuan);
+                } else {
+                    inputHarga.value = '0';
+                }
+                hitungTotalFinansialMulti();
+            });
+    }
+}
+
+// Kalkulator Multi-Item Pembelian
+function hitungTotalFinansialMulti() {
+    let grandTotal = 0;
+    const rows = document.querySelectorAll('#tbodyItemPembelian tr');
+
+    rows.forEach(row => {
+        const qty = parseInt(row.querySelector('.class-qty').value) || 0;
+        const hargaRaw = row.querySelector('.class-harga-satuan').value;
+        const harga = hargaRaw ? dapatkanAngkaMurni(hargaRaw) : 0; // KUNCI: jika kosong set 0
+        const totalBaris = qty * harga;
+        
+        row.querySelector('.class-total-baris').value = formatRibuan(totalBaris) || '0';
+        grandTotal += totalBaris;
+    });
+
+    document.getElementById('text-grand-total').innerText = 'Rp ' + formatRibuan(grandTotal);
+    
+    // KUNCI: Tangani jika input pembayaran kosong agar tidak NaN
+    const bayarRaw = document.getElementById('pembelian-pembayaran').value;
+    const bayar = bayarRaw ? dapatkanAngkaMurni(bayarRaw) : 0; 
+    
+    const sisa = grandTotal - bayar;
+    document.getElementById('text-sisa-hutang').innerText = 'Rp ' + (sisa > 0 ? formatRibuan(sisa) : '0');
+}
+
+// 2. Perbarui Event Listener Submit Form Mas agar jika kosong diisi '0' ke backend
+document.getElementById('formTambahArus').addEventListener('submit', function(e) {
+    const jenis = document.getElementById('selectJenisArus').value;
+
+    if (jenis === 'Pembelian') {
+        // Validasi Supplier wajib diisi
+        const suplierId = document.getElementById('arus-suplier-id-hidden').value;
+        if (!suplierId) {
+            e.preventDefault();
+            alert("Silakan pilih Supplier yang valid dari list yang muncul!");
+            return;
+        }
+
+        // Validasi Barang tidak boleh ada yang kosong di tabel
+        const barangIds = document.querySelectorAll('.class-hidden-barang-id');
+        let barangValid = true;
+        barangIds.forEach(idInput => {
+            if (!idInput.value) barangValid = false;
+        });
+
+        if (!barangValid) {
+            e.preventDefault();
+            alert("Ada item barang yang belum dipilih dengan benar dari list!");
+            return;
+        }
+
+        // KUNCI UTAMA: Jika kolom pembayaran kosong, paksa isi dengan karakter '0' sebelum dikirim ke Django
+        const inputBayar = document.getElementById('pembelian-pembayaran');
+        if (inputBayar) {
+            let nilaiBersih = dapatkanAngkaMurni(inputBayar.value);
+            inputBayar.value = (nilaiBersih === "" || isNaN(nilaiBersih)) ? "0" : nilaiBersih;
+        }
+
+        // Bersihkan semua format rupiah pada harga barang di tabel
+        const hargaInputs = document.querySelectorAll('.class-harga-satuan');
+        hargaInputs.forEach(input => {
+            let hargaBersih = dapatkanAngkaMurni(input.value);
+            input.value = (hargaBersih === "" || isNaN(hargaBersih)) ? "0" : hargaBersih;
+        });
+    }
+});
+
+// Event handler Supplier Master
+function initSupplierEvents() {
+    const inputSuplier = document.getElementById('arus-pilih-suplier');
+    const hiddenSuplierId = document.getElementById('arus-suplier-id-hidden');
+    const datalistSuplier = document.getElementById('data-suplier-list');
+    const bayarInput = document.getElementById('pembelian-pembayaran');
+
+    inputSuplier.addEventListener('input', function() {
+        const options = datalistSuplier.querySelectorAll('option');
+        let cocok = false;
+        options.forEach(opt => {
+            if (opt.value === inputSuplier.value) {
+                hiddenSuplierId.value = opt.getAttribute('data-id');
+                cocok = true;
+                // Trigger cek harga ulang untuk semua baris barang yang sudah terlanjur dipilih
+                document.querySelectorAll('#tbodyItemPembelian tr').forEach(row => cekHargaOtomatisBaris(row));
+            }
+        });
+        if (!cocok) hiddenSuplierId.value = "";
+    });
+
+    bayarInput.addEventListener('input', function() {
+        this.value = formatRibuan(this.value);
+        hitungTotalFinansialMulti();
+    });
+}
+
+// Handler Pemakaian tunggal bawaan lama Mas
+function initSingleBarangEvents() {
+    const inputBarang = document.getElementById('arus-pilih-barang');
+    const hiddenBarangId = document.getElementById('arus-barang-id-hidden');
+    const inputKode = document.getElementById('arus-kode-barang');
+    const datalistBarang = document.getElementById('data-barang-list');
+
+    inputBarang.addEventListener('input', function() {
+        const options = datalistBarang.querySelectorAll('option');
+        options.forEach(opt => {
+            if (opt.value === inputBarang.value) {
+                hiddenBarangId.value = opt.getAttribute('data-id');
+                inputKode.value = opt.getAttribute('data-kode');
+            }
+        });
+    });
+}
+
+// Pembersih Titik Saat Submit Form
+document.getElementById('formTambahArus').addEventListener('submit', function() {
+    document.querySelectorAll('.input-format-rupiah').forEach(input => {
+        input.value = dapatkanAngkaMurni(input.value);
+    });
+});
+
+selectJenisArus.addEventListener('change', updateFormFields);
+window.addEventListener('DOMContentLoaded', updateFormFields);
 
 // =========================================================================
 // 2. LOGIKA INTERAKSI INPUT & FORMATTING
@@ -604,7 +831,7 @@ if (selectJenisArus) {
 window.addEventListener('DOMContentLoaded', updateFormFields);
 
 // =========================================================================
-// 4. DETAIL ARUS BARANG VIA DOUBLE CLICK ROW (VIEW ONLY / READONLY)
+// 4. DETAIL ARUS BARANG VIA DOUBLE CLICK ROW (SAMA SEPERTI FORM TAMBAH)
 // =========================================================================
 document.addEventListener('DOMContentLoaded', function() {
     const rows = document.querySelectorAll('.row-arus-stok');
@@ -617,113 +844,128 @@ document.addEventListener('DOMContentLoaded', function() {
     rows.forEach(row => {
         row.addEventListener('dblclick', function() {
             const idArus = this.getAttribute('data-id');
-            const tanggalArus = this.getAttribute('data-tanggal');
-            const namaBarang = this.getAttribute('data-nama');
             const jenisArus = this.getAttribute('data-jenis');
-            const qtyArus = this.getAttribute('data-qty');
-            const keteranganArus = this.getAttribute('data-keterangan');
-            const suplierNama = this.getAttribute('data-suplier-nama');
-            
-            const hargaRaw = this.getAttribute('data-harga') || "0";
-            const hargaArus = parseFloat(hargaRaw.replace(',', '.')) || 0;
+            const tanggalArus = this.getAttribute('data-tanggal');
 
-            const pembayaranRaw = this.getAttribute('data-pembayaran') || "0";
-            const pembayaranArus = parseFloat(pembayaranRaw.replace(',', '.')) || 0;
-
-            const sisaRaw = this.getAttribute('data-sisa') || "0";
-            const sisaArus = parseFloat(sisaRaw.replace(',', '.')) || 0;
-
-            const tenggatArus = this.getAttribute('data-tenggat') || '-';
-
+            // Set Data Master Atas Modal Edit
             const modalTitle = document.getElementById('editModalTitle');
             if (modalTitle) modalTitle.innerText = "Detail Arus Barang";
-
+            
             document.getElementById('edit-tanggal').value = tanggalArus;
-            document.getElementById('edit-jenis-arus').value = jenisArus;
+            document.getElementById('edit-jenis-arus').value = jenisArus === 'Pembelian' ? 'Pembelian' : 'Pemakaian';
 
-            const baseFields = `
-                <div class="mb-3 row">
-                    <label class="col-sm-4 col-form-label fw-bold">Nama Barang</label>
-                    <div class="col-sm-8">
-                        <input type="text" class="form-control bg-light border-dark" id="edit-pilih-barang" readonly>
-                    </div>
-                </div>
-                <div class="mb-3 row">
-                    <label class="col-sm-4 col-form-label fw-bold">Keterangan Arus</label>
-                    <div class="col-sm-8">
-                        <input type="text" class="form-control bg-light border-dark" id="edit-keterangan" readonly>
-                    </div>
-                </div>
-                <div class="mb-3 row">
-                    <label class="col-sm-4 col-form-label fw-bold">Kuantitas (QTY)</label>
-                    <div class="col-sm-8">
-                        <input type="number" class="form-control bg-light border-dark" id="edit-qty" readonly>
-                    </div>
-                </div>
-            `;
+            // SKENARIO A: JIKA PEMAKAIAN (Tampilkan single input seperti form tambah pemakaian)
+            if (jenisArus === 'Pemakaian') {
+                const namaBarang = this.getAttribute('data-nama');
+                const qtyArus = this.getAttribute('data-qty');
+                const keteranganArus = this.getAttribute('data-keterangan') || '-';
 
-            if (jenisArus === 'Pembelian') {
-                dynamicEditFields.innerHTML = baseFields + `
+                dynamicEditFields.innerHTML = `
                     <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Supplier</label>
+                        <label class="col-sm-4 col-form-label fw-bold">Nama Barang</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control bg-light border-dark" id="edit-pilih-suplier" readonly>
+                            <input type="text" class="form-control bg-light border-dark" value="${namaBarang}" readonly>
                         </div>
                     </div>
                     <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Harga Satuan (@)</label>
+                        <label class="col-sm-4 col-form-label fw-bold">Keterangan</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control bg-light border-dark" id="edit-harga" readonly style="text-align: right !important;">
+                            <input type="text" class="form-control bg-light border-dark" value="${keteranganArus}" readonly>
                         </div>
                     </div>
                     <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Total Biaya</label>
+                        <label class="col-sm-4 col-form-label fw-bold">QTY Keluar</label>
                         <div class="col-sm-8">
-                            <input type="text" class="form-control bg-light border-dark" id="edit-total" readonly style="text-align: right !important;">
-                        </div>
-                    </div>
-                    <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Pembayaran</label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control bg-light border-dark" id="edit-pembayaran" readonly style="text-align: right !important;">
-                        </div>
-                    </div>
-                    <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Sisa Pembayaran</label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control bg-light border-dark" id="edit-sisa" readonly style="text-align: right !important;">
-                        </div>
-                    </div>
-                    <div class="mb-3 row">
-                        <label class="col-sm-4 col-form-label fw-bold">Tenggat Pembayaran</label>
-                        <div class="col-sm-8">
-                            <input type="text" class="form-control bg-light border-dark" id="edit-tenggat" readonly>
+                            <input type="text" class="form-control bg-light border-dark" value="${qtyArus} " readonly>
                         </div>
                     </div>
                 `;
-            } else {
-                dynamicEditFields.innerHTML = baseFields;
+                editModal.show();
+            } 
+            
+            // SKENARIO B: JIKA PEMBELIAN (Ambil data multi-item dari API, render Master Card + Tabel)
+            else if (jenisArus === 'Pembelian') {
+                dynamicEditFields.innerHTML = `<div class="text-center py-3"><div class="spinner-border spinner-border-sm" role="status"></div> Loading detail nota...</div>`;
+                editModal.show();
+
+                // Ambil data kelompok barang dari backend (Sesuai API views.py yang kita buat sebelumnya)
+                fetch(`/stok/arus/detail/${idArus}/`)
+                    .then(response => response.json())
+                    .then(res => {
+                        if (res.status === 'success') {
+                            const data = res.data;
+                            let tableRows = '';
+                            let totalBiayaNota = 0;
+
+                            // Loop isi barang yang dibeli di dalam nota ini
+                            data.items.forEach((item, index) => {
+                                totalBiayaNota += item.total_baris;
+                                tableRows += `
+                                    <tr>
+                                        <td><input type="text" class="form-control form-control-sm bg-light border-dark" value="${item.barang_nama}" readonly></td>
+                                        <td><input type="text" class="form-control form-control-sm bg-light border-dark text-center" value="${item.qty_arus}" readonly></td>
+                                        <td><input type="text" class="form-control form-control-sm bg-light border-dark text-end" value="${formatRibuan(item.harga_satuan)}" readonly></td>
+                                        <td><input type="text" class="form-control form-control-sm bg-light border-dark text-end" value="${formatRibuan(item.total_baris)}" readonly></td>
+                                    </tr>
+                                `;
+                            });
+
+                            // Masukkan struktur layout persis seperti form tambah pembelian (ada card master & table responsive)
+                            dynamicEditFields.innerHTML = `
+                                <div class="card p-3 mb-3 border-dark bg-light">
+                                    <div class="mb-2 row">
+                                        <label class="col-sm-4 col-form-label fw-bold py-0">Supplier</label>
+                                        <div class="col-sm-8 fw-bold text-primary">: ${data.suplier_nama}</div>
+                                    </div>
+                                    <div class="mb-2 row">
+                                        <label class="col-sm-4 col-form-label fw-bold py-0">Keterangan Nota</label>
+                                        <div class="col-sm-8">: ${data.keterangan_arus}</div>
+                                    </div>
+                                    <hr class="my-2 border-dark">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-2">
+                                            <label class="fw-bold mb-1">Jumlah Uang Dibayar</label>
+                                            <input type="text" class="form-control bg-light border-dark text-end" value="${formatRibuan(data.pembayaran)}" readonly>
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <label class="fw-bold mb-1">Tenggat Pembayaran</label>
+                                            <input type="text" class="form-control bg-light border-dark" value="${data.tenggat_pembayaran}" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+                                    <table class="table table-sm table-bordered border-dark alignment-middle">
+                                        <thead class="table-dark text-center">
+                                            <tr>
+                                                <th style="width: 45%;">Nama Barang</th>
+                                                <th style="width: 15%;">QTY</th>
+                                                <th style="width: 20%;">Harga Satuan</th>
+                                                <th style="width: 20%;">Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${tableRows}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="row mt-2 text-end justify-content-end">
+                                    <div class="col-md-6">
+                                        <div class="fw-bold fs-6">Grand Total: <span>Rp ${formatRibuan(totalBiayaNota)}</span></div>
+                                        <div class="fw-bold text-danger fs-6">Sisa Hutang: <span>Rp ${formatRibuan(data.sisa_hutang)}</span></div>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            dynamicEditFields.innerHTML = `<div class="text-center text-danger py-2">Gagal memuat data: ${res.message}</div>`;
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error Fetch Detail:", err);
+                        dynamicEditFields.innerHTML = `<div class="text-center text-danger py-2">Terjadi kesalahan jaringan.</div>`;
+                    });
             }
-
-            setTimeout(() => {
-                document.getElementById('edit-pilih-barang').value = namaBarang;
-                document.getElementById('edit-qty').value = qtyArus;
-                document.getElementById('edit-keterangan').value = keteranganArus || '-';
-
-                if (jenisArus === 'Pembelian') {
-                    document.getElementById('edit-pilih-suplier').value = suplierNama || '-';
-                    document.getElementById('edit-tenggat').value = tenggatArus || '-';
-                    
-                    const totalBiaya = qtyArus * hargaArus;
-
-                    document.getElementById('edit-harga').value = formatRibuan(hargaArus);
-                    document.getElementById('edit-total').value = formatRibuan(totalBiaya);
-                    document.getElementById('edit-pembayaran').value = formatRibuan(pembayaranArus);
-                    document.getElementById('edit-sisa').value = formatRibuan(sisaArus);
-                }
-            }, 50);
-
-            editModal.show();
         });
     });
 });
