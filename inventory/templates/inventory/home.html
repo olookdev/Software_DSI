@@ -148,8 +148,16 @@
         border-radius: 50%;
         display: inline-block;
     }
-    .dot-debt { background-color: #dc3545; } 
-    .dot-general { background-color: #0d6efd; } 
+    
+    .dot-debt { 
+        background-color: #dc3545 !important; /* 🔴 Merah */
+    } 
+    .dot-success { 
+        background-color: #28a745 !important; /* 🟢 Hijau murni */
+    } 
+    .dot-general { 
+        background-color: #0d6efd !important; /* 🔵 Biru */
+    }
 
     .custom-close-btn {
         position: absolute;
@@ -198,7 +206,6 @@
     }
     
 </style>
-
 <script>
     const eventsData = JSON.parse('{{ events_json|safe }}');
     
@@ -239,12 +246,21 @@
             if (day === realToday.getDate() && month === realToday.getMonth() && year === realToday.getFullYear()) {
                 isTodayClass = 'today-day';
             }
-
             let dotsHtml = '';
             if (eventsData[dateKey]) {
                 dotsHtml = '<div class="dots-container">';
                 eventsData[dateKey].forEach(ev => {
-                    dotsHtml += `<span class="dot dot-${ev.tipe}"></span>`;
+                    if (ev.tipe === 'debt') {
+                        // 💡 JIKA LUNAS: Berikan class 'dot-success', JIKA BELUM: Biarkan pakai 'dot-debt' bawaan Mas
+                        if (ev.status_bayar === 'Lunas') {
+                            dotsHtml += `<span class="dot dot-success"></span>`;
+                        } else {
+                            dotsHtml += `<span class="dot dot-debt"></span>`;
+                        }
+                    } else {
+                        // Untuk kegiatan umum ('general'), otomatis menjadi 'dot-general'
+                        dotsHtml += `<span class="dot dot-${ev.tipe}"></span>`;
+                    }
                 });
                 dotsHtml += '</div>';
             }

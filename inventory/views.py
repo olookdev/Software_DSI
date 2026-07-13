@@ -1452,29 +1452,65 @@ def home(request):
             
             return redirect('home') 
 
-    daftar_hutang = Hutang.objects.filter(
-        arus_stok__tenggat_pembayaran__isnull=False
-    )
+    daftar_hutang = Hutang.objects.all().select_related('arus_stok__suplier', 'arus_stok')
     
     daftar_kegiatan = Kegiatan.objects.all()
     events_data = {}
 
+    # Set untuk melacak No. Invoice yang sudah dimasukkan ke kalender Home
+    invoice_terproses = set()
+
     for h in daftar_hutang:
-        tgl_str = h.arus_stok.tenggat_pembayaran.strftime('%Y-%m-%d')
+        arus_utama = h.arus_stok
+        if not arus_utama:
+            continue
+            
+        # 💡 KEMBALIKAN KE TENGGAT PEMBAYARAN (Agar menetap di hari jatuh tempo)
+        # Kita cek tenggat_pembayaran dulu, kalau kosong baru fallback ke tanggal input
+        target_tanggal = arus_utama.tenggat_pembayaran or arus_utama.tanggal
+        
+        if target_tanggal:
+            # Pastikan diconvert ke string format murni YYYY-MM-DD
+            tgl_str = target_tanggal.strftime('%Y-%m-%d')
+        else:
+            continue
+            
+        supplier_nama = arus_utama.suplier.nama_suplier if arus_utama.suplier else "Supplier"
+        
+        # JIKA MEMILIKI NO INVOICE (Gabungan Banyak Barang)
+        if arus_utama.no_invoice:
+            if arus_utama.no_invoice in invoice_terproses:
+                continue
+                
+            invoice_terproses.add(arus_utama.no_invoice)
+            
+            semua_hutang_nota = Hutang.objects.filter(arus_stok__no_invoice=arus_utama.no_invoice)
+            total_sisa_nota = sum(item.sisa_hutang for item in semua_hutang_nota)
+            
+            # Jika semua item di nota itu Lunas, maka statusnya Lunas
+            status_nota = 'Lunas' if all(item.status == 'Lunas' for item in semua_hutang_nota) else 'Belum Lunas'
+            keterangan_tampil = f"Inv: {arus_utama.no_invoice} | Sisa: Rp {total_sisa_nota:,.0f}".replace(',', '.')
+        
+        # JIKA TANPA NO INVOICE (Pembelian eceran/satuan)
+        else:
+            status_nota = h.status
+            keterangan_tampil = f"Sisa: Rp {h.sisa_hutang:,.0f} | Nota: {arus_utama.keterangan_arus or '-'}"
+
+        # Masukkan ke dalam dictionary data kalender event
         if tgl_str not in events_data:
             events_data[tgl_str] = []
-        
-        supplier_nama = h.arus_stok.suplier.nama_suplier if h.arus_stok.suplier else "Supplier"
-        keterangan_nota = h.arus_stok.keterangan_arus or "Tanpa keterangan nota"
-        
+            
         events_data[tgl_str].append({
             'id': h.id,
             'tipe': 'debt',
-            'status_bayar': h.status,
+            'status_bayar': status_nota, 
             'judul': f"Bayar Hutang: {supplier_nama}",
-            'detail': f"Sisa: Rp {h.sisa_hutang:,.0f} | Nota: {keterangan_nota}".replace(',', '.')
+            'detail': keterangan_tampil
         })
 
+    # ==========================================
+    # AMBIL DATA KEGIATAN MANUAL GENERAL
+    # ==========================================
     for k in daftar_kegiatan:
         tgl_str = k.tanggal.strftime('%Y-%m-%d')
         if tgl_str not in events_data:

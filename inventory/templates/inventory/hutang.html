@@ -34,7 +34,7 @@
                     <th style="text-align: center;">Tenggat Pembayaran</th>
                     <th style="text-align: center;">Sisa Hutang</th>
                     <th style="text-align: center;">Status</th> 
-                    <th style="text-align: center;">Aksi</th> 
+                    <th style="text-align: center;"></th> 
                 </tr>
             </thead>
 
@@ -59,7 +59,7 @@
                     <td><strong>{{ data.obj.arus_stok.suplier.nama_suplier|default:'-' }}</strong></td>
                     <td>{{ data.obj.arus_stok.barang.kode_barang|default:'-' }}</td>
                     <td>{{ data.obj.arus_stok.tanggal|date:"d-m-Y" }}</td>
-                    <td>
+                    <td style="text-align: center;">
                         {% if data.obj.arus_stok.tenggat_pembayaran %}
                             {{ data.obj.arus_stok.tenggat_pembayaran|date:"d-m-Y" }}
                         {% else %}
