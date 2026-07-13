@@ -7,7 +7,7 @@ from inventory.views import (
     tambah_jenis, hapus_stok, edit_harga_stok, tambah_arus_stok, log_arus_stok,
     edit_arus_stok, hapus_arus_stok, hapus_customer, hapus_suplier,  list_order, cari_customer, tambah_order,
     kode_order, cari_produk, get_order_items, edit_order, bayar_cicilan, ambil_harga_satuan, transaksi, hapus_transaksi, hutang,
-    home, stok_opname, hapus_stok_opname, update_tgl_cetak, detail_spk, faktur_order, faktur_lunas, detail_arus_stok
+    home, stok_opname, hapus_stok_opname, update_tgl_cetak, detail_spk, faktur_order, faktur_lunas, detail_arus_stok, hapus_order_view
 )
 
 urlpatterns = [
@@ -73,6 +73,7 @@ urlpatterns = [
     path('api/get-order-items/<int:order_id>/', get_order_items, name='get_order_items'),
     path('order/edit/<int:order_id>/', edit_order, name='edit_order_utama'),
     path('order/edit/<int:order_id>/', edit_order, name='edit_order'),
+    path('order/hapus/<int:order_id>/', hapus_order_view, name='hapus_order'),
     
 
     #piutang

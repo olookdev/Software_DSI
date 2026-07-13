@@ -927,21 +927,27 @@ def titik_uang(nilai_string):
         return float(clean_string)
     except ValueError:
         return 0.0
-
 def list_order(request):
     query = request.GET.get('search')
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     status_filter = request.GET.get('status', 'Semua')
+    
+    # 💡 1. Tangkap parameter filter keaktifan baru (default: aktif)
+    keaktifan_filter = request.GET.get('keaktifan', 'aktif')
+    
     hari_ini = timezone.now().date()
     semua_order = OrderUtama.objects.all()
 
+    # --- Filter Berdasarkan Tanggal ---
     if start_date and end_date:
         semua_order = semua_order.filter(tgl_order__date__range=[start_date, end_date])
     else:
         semua_order = semua_order.filter(tgl_order__date=hari_ini)
         start_date = hari_ini.strftime('%Y-%m-%d')
         end_date = hari_ini.strftime('%Y-%m-%d')
+        
+    # --- Filter Berdasarkan Search Bar ---
     if query:
         semua_order = semua_order.filter(
             Q(no_order__icontains=query) | 
@@ -949,11 +955,23 @@ def list_order(request):
             Q(customer__nama_customer__icontains=query)
         )
 
-    total_orderan = semua_order.count()
-    total_status_order = semua_order.filter(status__iexact='order').count()
-    total_status_proses = semua_order.filter(status__iexact='proses').count()
-    total_status_selesai = semua_order.filter(status__iexact='selesai').count()
+    # 💡 2. LOGIKA BARU: Filter Keaktifan Data (Soft Delete) sebelum hitung data Card Ringkasan
+    # Kita pisahkan data base pencarian untuk Card (hanya yang aktif) agar angka summary tetap akurat
+    order_untuk_card = semua_order.filter(is_active=True)
+
+    total_orderan = order_untuk_card.count()
+    total_status_order = order_untuk_card.filter(status__iexact='order').count()
+    total_status_proses = order_untuk_card.filter(status__iexact='proses').count()
+    total_status_selesai = order_untuk_card.filter(status__iexact='selesai').count()
  
+    # 💡 3. Terapkan filter keaktifan sesungguhnya ke QuerySet utama tabel
+    if keaktifan_filter == 'aktif':
+        semua_order = semua_order.filter(is_active=True)
+    elif keaktifan_filter == 'tidak_aktif':
+        semua_order = semua_order.filter(is_active=False)
+    # Jika keaktifan_filter == 'semua', jalurnya dilewati (menampilkan aktif & dihapus sekaligus)
+
+    # --- Filter Berdasarkan Status Pengerjaan ---
     if status_filter and status_filter != 'Semua':
         semua_order = semua_order.filter(status__iexact=status_filter)
 
@@ -965,6 +983,9 @@ def list_order(request):
         'start_date': str(start_date),
         'end_date': str(end_date),
         'status_aktif': status_filter,
+        
+        'keaktifan_aktif': keaktifan_filter, 
+        
         'card_total': total_orderan,
         'card_order': total_status_order,
         'card_proses': total_status_proses,
@@ -1178,6 +1199,30 @@ def edit_order(request, order_id):
             messages.error(request, f"Gagal memperbarui order: {str(e)}")
             return redirect('list_order')
             
+    return redirect('list_order')
+
+def hapus_order_view(request, order_id):
+    # Pastikan hanya menerima request POST demi keamanan data
+    if request.method == "POST":
+        # 1. Ambil data order berdasarkan ID
+        order = get_object_or_404(OrderUtama, id=order_id)
+        
+        # 2. Ambil alasan hapus yang diisi user di modal HTML
+        alasan = request.POST.get('alasan_hapus')
+        
+        if alasan:
+            # 3. Jalankan Soft Delete (Ubah status, simpan alasan & waktu hapus)
+            order.is_active = False
+            order.alasan_hapus = alasan
+            order.deleted_at = timezone.now()  # Mencatat waktu pembatalan
+            order.save()
+            
+            # 4. Beri notifikasi sukses ke user
+            messages.success(request, f"Order {order.no_order} berhasil dinonaktifkan.")
+        else:
+            messages.error(request, "Gagal menghapus! Alasan pembatalan wajib diisi.")
+            
+    # Kembalikan user ke halaman list stok / order semula
     return redirect('list_order')
 
 #=====================================piutang=====================================

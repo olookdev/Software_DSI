@@ -178,6 +178,10 @@ class OrderUtama(models.Model):
     sisa_bayar = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="Sisa Pembayaran")
     keterangan = models.TextField(blank=True, null=True, verbose_name="Keterangan")
 
+    is_active = models.BooleanField(default=True, verbose_name="Status Aktif")
+    alasan_hapus = models.TextField(blank=True, null=True, verbose_name="Alasan Dihapus / Dibatalkan")
+    deleted_at = models.DateTimeField(blank=True, null=True, verbose_name="Waktu Dihapus")
+
     def save(self, *args, **kwargs):
         if not self.no_order:
             sekarang = datetime.now()
@@ -196,7 +200,8 @@ class OrderUtama(models.Model):
         super(OrderUtama, self).save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.no_order} - {self.nama_order}"
+        status_aktif = "" if self.is_active else " [DIHAPUS/BATAL]"
+        return f"{self.no_order} - {self.nama_order}{status_aktif}"
 
     class Meta:
         verbose_name_plural = "Data Order Utama"

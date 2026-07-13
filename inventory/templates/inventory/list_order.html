@@ -23,6 +23,12 @@
                 <option value="proses" {% if status_aktif == 'proses' %}selected{% endif %}>Proses</option>
                 <option value="selesai" {% if status_aktif == 'selesai' %}selected{% endif %}>Selesai</option>
             </select>
+            <select class="form-select custom-select" name="keaktifan" style="width: 200px; margin-left: 10px;" 
+                    onchange="document.getElementById('form-filter').submit()">
+                <option value="aktif" {% if keaktifan_aktif == 'aktif' %}selected{% endif %}>Order Aktif</option>
+                <option value="tidak_aktif" {% if keaktifan_aktif == 'tidak_aktif' %}selected{% endif %}>Order Dihapus / Batal</option>
+                <option value="semua" {% if keaktifan_aktif == 'semua' %}selected{% endif %}>Semua (Aktif & Batal)</option>
+            </select>
         </form>
     
         {% include 'components/btn_plus.html' with modal_id="tambahOrderModal" %}
@@ -44,7 +50,8 @@
                     <th>Tanggal Order</th>
                     <th>Nama Customer</th>
                     <th>Nama Order</th>
-                    <th class="text-center">Status</th> 
+                    <th class="text-center" style="width: 180px;">Status</th> 
+                    <th style ="width: 10px;"></th>
                 </tr>
             </thead>
             <tbody>
@@ -63,20 +70,42 @@
                     data-total-harga="{{ order.total_harga }}"
                     data-uang-muka="{{ order.uang_muka }}"
                     data-sisa-bayar="{{ order.sisa_bayar }}"
-                    data-keterangan="{{ order.keterangan|default:'' }}">
+                    data-keterangan="{{ order.keterangan|default:'' }}"
+                    
+                    data-is-active="{{ order.is_active }}"
+                    data-alasan-hapus="{{ order.alasan_hapus|default:'-' }}"
+                    data-waktu-hapus="{{ order.deleted_at|date:'d-m-Y H:i'|default:'-' }}">
                     
                     <td class="text-center-custom">{{ forloop.counter }}</td>
                     <td>{{ order.no_order }}</td>
                     <td>{{ order.tgl_order|date:"d-m-Y" }}</td> 
                     <td>{{ order.customer.nama_customer }}</td>
                     <td>{{ order.nama_order }}</td> 
+                    
                     <td class="text-center-custom">
-                        <span class="badge-status badge-{{ order.status|lower }}">{{ order.status }}</span>
+                        <div class="d-flex align-items-center justify-content-center gap-2">
+                            <span class="badge-status badge-{{ order.status|lower }}">{{ order.status }}</span>
+                        </div>
                     </td>
+                    <td>
+                        {% if order.is_active %}
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger border-0 btn-hapus-order py-0 px-1"
+                                    data-id="{{ order.id }}"
+                                    data-no-order="{{ order.no_order }}"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#modalHapusOrder"
+                                    title="Hapus Order">
+                                <i class="bi bi-trash fs-5"></i>
+                            </button>
+                        {% else %}
+                            <span class="text-muted small italic">(Dihapus)</span>
+                        {% endif %}
+                    </td>                            
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center py-3 text-muted">Belum ada data transaksi order.</td>
+                    <td colspan="6" class="text-center py-3 text-muted">Belum ada data transaksi order.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -301,39 +330,97 @@
                         </div>
                     </div>
 
-                   <div class="d-flex justify-content-center gap-2 mt-4">
-                        <button type="submit" class="btn-footer-order text-white border-0 py-2 px-4 rounded" style="background-color: #1A6B8D;">Simpan Order</button>
-                        <button type="reset" class="btn-footer-order text-white border-0 py-2 px-4 rounded" style="background-color: #8B0000;">Reset</button>
-                        
-                        <a href="#" 
-                            id="btn-cetak-faktur" 
-                            target="_blank" 
-                            onclick="return cekAksesFaktur(event, this);"
-                            class="btn-footer-order text-white text-decoration-none py-2 px-4 rounded d-none align-items-center justify-content-center" 
-                            style="background-color: #244855;">
-                                <i class="bi bi-file-earmark-text me-1"></i> Faktur
-                        </a>
+                   <div class="mt-4">
 
-                        <a href="/order/faktur/{{ order.id }}/" 
-                            id="btn-cetak-faktur-order" 
-                            target="_blank" 
-                            class="btn-footer-order text-white text-decoration-none py-2 px-4 rounded d-flex align-items-center justify-content-center" 
-                            style="background-color: #198754;">
-                                <i class="bi bi-printer me-1"></i> Faktur Order
-                        </a>
+    <div id="wrapper-tombol-order" class="d-flex justify-content-center gap-2">
+        <button type="submit" class="btn-footer-order text-white border-0 py-2 px-4 rounded" style="background-color: #1A6B8D;">Simpan Order</button>
+        <button type="reset" class="btn-footer-order text-white border-0 py-2 px-4 rounded" style="background-color: #8B0000;">Reset</button>
+        
+        <a href="#" 
+            id="btn-cetak-faktur" 
+            target="_blank" 
+            onclick="return cekAksesFaktur(event, this);"
+            class="btn-footer-order text-white text-decoration-none py-2 px-4 rounded d-none align-items-center justify-content-center" 
+            style="background-color: #244855;">
+                <i class="bi bi-file-earmark-text me-1"></i> Faktur
+        </a>
 
-                       <a href="/order/spk/{{ order.id }}/"  
-                            id="btn-cetak-spk" 
-                            target="_blank" 
-                            data-order-id="{{ order.id }}"
-                            onclick="catatWaktuCetak(event, this)"
-                            class="btn-footer-order text-white text-decoration-none py-2 px-4 rounded d-flex align-items-center justify-content-center" 
-                            style="background-color: #4A5568;">
-                                <i class="bi bi-file-earmark-clipboard me-1"></i> SPK Order
-                        </a>
-                    </div>
+        <a href="/order/faktur/{{ order.id }}/" 
+            id="btn-cetak-faktur-order" 
+            target="_blank" 
+            class="btn-footer-order text-white text-decoration-none py-2 px-4 rounded d-flex align-items-center justify-content-center" 
+            style="background-color: #198754;">
+                <i class="bi bi-printer me-1"></i> Faktur Order
+        </a>
+
+        <a href="/order/spk/{{ order.id }}/"  
+            id="btn-cetak-spk" 
+            target="_blank" 
+            data-order-id="{{ order.id }}"
+            onclick="catatWaktuCetak(event, this)"
+            class="btn-footer-order text-white text-decoration-none py-2 px-4 rounded d-flex align-items-center justify-content-center" 
+            style="background-color: #4A5568;">
+                <i class="bi bi-file-earmark-clipboard me-1"></i> SPK Order
+        </a>
+    </div>
+
+    <div id="wrapper-alasan-batal" class="d-none">
+        <div class="alert alert-danger border-danger d-flex align-items-start gap-3 p-3 rounded shadow-sm">
+            <i class="bi bi-exclamation-octagon-fill fs-4 text-danger mt-1"></i>
+            <div class="w-100">
+                <h6 class="alert-heading fw-bold text-danger mb-1">🚫 Order Ini Telah Dibatalkan / Dihapus</h6>
+                <p class="mb-2 text-dark fs-14">
+                    <strong>Alasan Pembatalan:</strong> <br>
+                    <span id="textAlasanBatal" class="fst-italic text-muted">"{{ order.alasan_hapus|default:'Tidak ada alasan tertulis.' }}"</span>
+                </p>
+                <hr class="my-2 border-danger-subtle">
+                <div class="d-flex justify-content-between text-muted small">
+                    <span>Waktu Pembatalan: <strong id="textWaktuBatal">{{ order.deleted_at|date:"d-m-Y H:i"|default:"-" }}</strong></span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-3">
+            <button type="button" class="btn btn-secondary px-4 py-2" data-bs-dismiss="modal">Tutup Detail</button>
+        </div>
+    </div>
+
+</div>
                 </form>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalHapusOrder" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Konfirmasi Pembatalan Order</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <form id="formHapusOrder" method="POST" action="">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p>Apakah Anda yakin ingin membatalkan/menghapus order <strong id="textNoOrderHapus">-</strong>?</p>
+                    <p class="text-muted small mt-[-10px]">Data tidak akan dihapus permanen, melainkan diubah menjadi status non-aktif.</p>
+                    
+                    <div class="mb-3">
+                        <label for="alasan_hapus" class="form-label fw-bold text-danger">Alasan Penghapusan / Pembatalan <span class="text-danger">*</span></label>
+                        <textarea class="form-control border-dark" 
+                                  name="alasan_hapus" 
+                                  id="alasan_hapus" 
+                                  rows="3" 
+                                  placeholder="Contoh: Customer salah pesan ukuran / Order ganti nota baru..." 
+                                  required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger fw-bold">Ya, Non-aktifkan Order</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -970,6 +1057,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     }
+    
 
     // =========================================================================
     // E. SISA PEMBAYARAN DAN FINANSIAL
@@ -1063,6 +1151,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const modalTitle = document.querySelector('#tambahOrderModal .modal-title');
             if (modalTitle) modalTitle.innerText = "Edit Order";
 
+            // Ambil Data Atribut
             const idOrder = tr.getAttribute('data-id');
             const noOrder = tr.getAttribute('data-no-order');
             const tglOrder = tr.getAttribute('data-tgl');
@@ -1078,17 +1167,35 @@ document.addEventListener("DOMContentLoaded", function () {
             const sisaBayarVal = tr.getAttribute('data-sisa-bayar');
             const keterangan = tr.getAttribute('data-keterangan');
 
+            // Data Keaktifan
+            const isActive = tr.getAttribute('data-is-active') === 'True' || tr.getAttribute('data-is-active') === 'true';
+            const alasanHapus = tr.getAttribute('data-alasan-hapus') || 'Tidak ada alasan tertulis.';
+            const waktuHapus = tr.getAttribute('data-waktu-hapus') || '-';
+
+            // Logika Tampilan Footer (Sembunyi/Muncul Tombol)
+            const tombolWrapper = document.getElementById('wrapper-tombol-order');
+            const alasanWrapper = document.getElementById('wrapper-alasan-batal');
+
+            if (isActive) {
+                if (tombolWrapper) tombolWrapper.classList.remove('d-none');
+                if (alasanWrapper) alasanWrapper.classList.add('d-none');
+            } else {
+                if (tombolWrapper) tombolWrapper.classList.add('d-none');
+                if (alasanWrapper) alasanWrapper.classList.remove('d-none');
+                document.getElementById('textAlasanBatal').textContent = `"${alasanHapus}"`;
+                document.getElementById('textWaktuBatal').textContent = waktuHapus;
+            }
+
             sisaBayarDariDB = parseFloat(sisaBayarVal) || 0;
             totalHargaAwalDB = parseFloat(totalHarga) || 0;
             uangMukaAwalDB = parseFloat(uangMukaVal) || 0;
 
+            // Atur Tombol Faktur & SPK
             if (idOrder && btnFaktur && btnFakturOrder && btnSpk) {
                 btnFaktur.href = `/order/faktur/${idOrder}/`;
                 btnFaktur.setAttribute('data-order-id', idOrder);
-
                 btnFakturOrder.href = `/order/faktur-order/${idOrder}/`;
                 btnFakturOrder.setAttribute('data-order-id', idOrder);
-
                 btnSpk.href = `/order/spk/${idOrder}/`;
                 btnSpk.setAttribute('data-order-id', idOrder);
 
@@ -1098,6 +1205,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
             }
 
+            // Isi Data ke Form Modal
             const modalNoOrder = document.getElementById('modal_no_order');
             if (modalNoOrder) modalNoOrder.value = noOrder;
             if (tglInput) tglInput.value = tglOrder;
@@ -1145,8 +1253,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 .then(data => {
                     orderItemsArray = data.items.map(item => ({
                         kode_item: item.kode_item,
-                        nama_item: item.nama_item,         
-                        nama_pesanan: item.nama_pesanan,   
+                        nama_item: item.nama_item, 
+                        nama_pesanan: item.nama_pesanan, 
                         qty: item.qty === "-" ? "-" : (parseInt(item.qty) || 1),
                         panjang: item.panjang === "-" ? "-" : (parseFloat(item.panjang) || 1),
                         lebar: item.lebar === "-" ? "-" : (parseFloat(item.lebar) || 1),
@@ -1207,6 +1315,32 @@ document.addEventListener("DOMContentLoaded", function () {
             renderTabelItem();
         });
     }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const btnHapus = document.querySelectorAll('.btn-hapus-order');
+    const formHapus = document.getElementById('formHapusOrder');
+    const textNoOrder = document.getElementById('textNoOrderHapus');
+
+    btnHapus.forEach(button => {
+        button.addEventListener('click', function(event) {
+            // 💡 STOP PROPAGATION: Mencegah efek klik baris (TR) detail order agar tidak ikut terbuka
+            event.stopPropagation();
+
+            const orderId = this.getAttribute('data-id');
+            const noOrder = this.getAttribute('data-no-order');
+
+            // Suntik nomor order ke dalam teks pertanyaan modal
+            if (textNoOrder) textNoOrder.textContent = noOrder;
+
+            // Atur target action form secara dinamis ke views backend Mas
+            if (formHapus) formHapus.action = `/order/hapus/${orderId}/`;
+            
+            // Reset isi textarea setiap kali baru diklik
+            const txtAlasan = document.getElementById('alasan_hapus');
+            if (txtAlasan) txtAlasan.value = '';
+        });
+    });
 });
 </script>
 {% endblock %}
