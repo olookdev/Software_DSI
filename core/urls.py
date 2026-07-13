@@ -7,7 +7,7 @@ from inventory.views import (
     tambah_jenis, hapus_stok, edit_harga_stok, tambah_arus_stok, log_arus_stok,
     edit_arus_stok, hapus_arus_stok, hapus_customer, hapus_suplier,  list_order, cari_customer, tambah_order,
     kode_order, cari_produk, get_order_items, edit_order, bayar_cicilan, ambil_harga_satuan, transaksi, hapus_transaksi, hutang,
-    home, stok_opname, hapus_stok_opname, update_tgl_cetak, detail_spk, faktur_order, faktur_lunas
+    home, stok_opname, hapus_stok_opname, update_tgl_cetak, detail_spk, faktur_order, faktur_lunas, detail_arus_stok
 )
 
 urlpatterns = [
@@ -45,6 +45,7 @@ urlpatterns = [
     path('stok/arus/edit/<int:pk>/', edit_arus_stok, name='edit_arus_stok'),
     path('stok/arus/hapus/<int:pk>/', hapus_arus_stok, name='hapus_arus_stok'),
     path('stok/ambil-harga/', ambil_harga_satuan, name='ambil_harga_satuan'),
+    path('stok/arus/detail/<int:pk>/', detail_arus_stok, name='detail_arus_stok'),
 
     # Stok opname
     path('stok/stok_opname', stok_opname, name='stok_opname'),
