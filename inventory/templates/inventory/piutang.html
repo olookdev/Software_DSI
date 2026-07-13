@@ -6,55 +6,78 @@
 
 <div class="action-bar">
     <div class="controls-group">
-        {% include 'components/search_bar.html' with placeholder_text="Cari customer atau order........." %}
+        <form method="GET" action="{% url 'piutang' %}" id="form-filter" class="d-flex gap-2 w-100 align-items-center">
+            <div class="controls-group flex-grow-1">
+                {% include 'components/search_bar.html' with placeholder_text="Cari customer atau order........." %}    
+            </div>
+
+            <div class="filter-group">
+                <select class="form-select custom-select border-dark" id="filter-status-piutang" name="status" onchange="this.form.submit()" style="width: 200px; height: 38px; margin-top: 37px; margin-left: 10px">
+                    <option value="Semua" {% if status_aktif == 'Semua' %}selected{% endif %}>Semua Status</option>
+                    <option value="Belum Lunas" {% if status_aktif == 'Belum Lunas' %}selected{% endif %}>Belum Lunas</option>
+                    <option value="Lunas" {% if status_aktif == 'Lunas' %}selected{% endif %}>Lunas</option>
+                </select>
+            </div>
+        </form>
     </div>
     <div class="table-container-shadow">
         <table class="custom-table table align-middle">
             <thead>
-                <tr>
+                <tr style="text-align: center;">
                     <th style="width: 50px;">No</th>
                     <th>Nama Customer</th>
                     <th>Kode Order</th>
                     <th>Nama Order</th>
                     <th>Tanggal Order</th>
                     <th>Sisa Piutang</th>
-                    <th>Status</th>
-                    <th style="width: 80px;">Aksi</th> 
+                    <th style="text-align: center;">Status</th>
+                    <th style="width: 80px;"></th> 
                 </tr>
             </thead>
-            <tbody>
-                {% for item in page_obj %}
-                <tr>
-                    <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
-                    <td>{{ item.order.customer.nama_customer }}</td>
-                    <td>{{ item.order.no_order }}</td>
-                    <td>{{ item.order.nama_order|default:"-" }}</td>
-                    <td>{{ item.order.tgl_order|date:"d-m-Y" }}</td>
-                    <td class="text-danger fw-bold">Rp {{ item.sisa_piutang|floatformat:0|intcomma }}</td>
-                    <td>{{ item.status }}</td>
-                    <td class="text-center">
-                        <div class="d-flex gap-2 justify-content-center align-items-center">
-                            <button class="btn btn-sm btn-outline-primary btn-detail-piutang" 
-                                    data-id="{{ item.id }}"
-                                    data-nama="{{ item.order.customer.nama_customer }}"
-                                    data-noorder="{{ item.order.no_order }}"
-                                    data-namaorder="{{ item.order.nama_order|default:'-' }}"
-                                    data-sisa="{{ item.sisa_piutang|floatformat:0 }}"
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#modalDetailPiutang">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="8" class="text-center text-muted py-4">
-                        Tidak ada data piutang pelanggan aktif.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
+           <tbody>
+            {% for item in page_obj %}
+            <tr class="row-piutang">
+                <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+                <td>{{ item.order.customer.nama_customer }}</td>
+                <td>{{ item.order.no_order }}</td>
+                <td>{{ item.order.nama_order|default:"-" }}</td>
+                <td>{{ item.order.tgl_order|date:"d-m-Y" }}</td>
+                
+                <td class="{% if item.status == 'Lunas' %}text-success{% else %}text-danger{% endif %} fw-bold">
+                    Rp {{ item.sisa_piutang|floatformat:0|intcomma }}
+                </td>
+                
+                <td class="text-center" style="vertical-align: middle;">
+                    {% if item.status == 'Lunas' %}
+                        <span class="badge bg-success text-white fw-bold px-2 py-1">✅ Lunas</span>
+                    {% else %}
+                        <span class="badge bg-danger text-white fw-bold px-2 py-1">❌ Belum Lunas</span>
+                    {% endif %}
+                </td>
+                
+                <td class="text-center">
+                    <div class="d-flex gap-2 justify-content-center align-items-center">
+                        <button class="btn btn-sm btn-outline-primary btn-detail-piutang" 
+                                data-id="{{ item.id }}"
+                                data-nama="{{ item.order.customer.nama_customer }}"
+                                data-noorder="{{ item.order.no_order }}"
+                                data-namaorder="{{ item.order.nama_order|default:'-' }}"
+                                data-sisa="{{ item.sisa_piutang|stringformat:'.2f' }}"
+                                data-bs-toggle="modal" 
+                                data-bs-target="#modalDetailPiutang">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center text-muted py-4">
+                    Tidak ada data piutang pelanggan aktif.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
         </table>
 
         <div class="d-flex justify-content-between align-items-center mt-3">
@@ -66,7 +89,7 @@
                 <ul class="pagination pagination-sm mb-0">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&status={{ status_aktif }}&q={{ request.GET.q }}" aria-label="Previous">
                                 <span aria-hidden="true">&laquo; Sebelum</span>
                             </a>
                         </li>
@@ -80,7 +103,7 @@
 
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}&status={{ status_aktif }}&q={{ request.GET.q }}" aria-label="Next">
                                 <span aria-hidden="true">Berikutnya &raquo;</span>
                             </a>
                         </li>
@@ -102,30 +125,35 @@
             </div>
             
             <form id="formBayarCicilan" method="POST" action="">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <div class="card bg-light border-0 mb-3">
-                        <div class="card-body p-3 fs-14">
-                            <div class="row mb-1">
-                                <div class="col-5 text-muted">Customer:</div>
-                                <div class="col-7 fw-bold" id="modalNamaCustomer">-</div>
-                            </div>
-                            <div class="row mb-1">
-                                <div class="col-5 text-muted">Kode Order:</div>
-                                <div class="col-7 font-monospace" id="modalNoOrder">-</div>
-                            </div>
-                            <div class="row mb-1">
-                                <div class="col-5 text-muted">Nama Order:</div>
-                                <div class="col-7" id="modalNamaOrder">-</div>
-                            </div>
-                            <hr class="my-2">
-                            <div class="row">
-                                <div class="col-5 text-muted fw-bold text-danger ">Sisa Piutang:</div>
-                                <div class="col-7 fw-bold text-danger" id="modalSisaPiutang">Rp 0</div>
-                            </div>
+            {% csrf_token %}
+            <div class="modal-body">
+                <div class="card bg-light border-0 mb-3">
+                    <div class="card-body p-3 fs-14">
+                        <div class="row mb-1">
+                            <div class="col-5 text-muted">Customer:</div>
+                            <div class="col-7 fw-bold" id="modalNamaCustomer">-</div>
+                        </div>
+                        <div class="row mb-1">
+                            <div class="col-5 text-muted">Kode Order:</div>
+                            <div class="col-7 font-monospace" id="modalNoOrder">-</div>
+                        </div>
+                        <div class="row mb-1">
+                            <div class="col-5 text-muted">Nama Order:</div>
+                            <div class="col-7" id="modalNamaOrder">-</div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row">
+                            <div class="col-5 text-muted fw-bold text-danger">Sisa Piutang:</div>
+                            <div class="col-7 fw-bold text-danger" id="modalSisaPiutang">Rp 0</div>
                         </div>
                     </div>
+                </div>
 
+                <div id="pesan-lunas-alert" class="alert alert-success text-center fw-bold d-none my-3">
+                    🎉 Piutang ini sudah Lunas total! Tidak ada tagihan tersisa.
+                </div>
+
+                <div id="form-pembayaran-wrapper">
                     <div class="mb-3">
                         <label for="nominal_pembayaran" class="form-label fw-semibold">Nominal Pembayaran (Rp)</label>
                         <input type="text" 
@@ -139,17 +167,23 @@
                     <div class="mb-3">
                         <label for="keterangan" class="form-label fw-semibold">Keterangan (Opsional)</label>
                         <textarea name="keterangan" 
-                                  id="keterangan" 
-                                  class="form-control" 
-                                  rows="2" 
-                                  placeholder="Contoh: Titip lewat sales / Transfer Mandiri"></textarea>
+                                id="keterangan" 
+                                class="form-control" 
+                                rows="2" 
+                                placeholder="Contoh: Titip lewat sales / Transfer Mandiri"></textarea>
+                    </div>
+
+                    <div class="modal-footer px-0 pb-0 border-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-success fw-bold">Simpan Pembayaran</button>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-success fw-bold">Simpan Pembayaran</button>
+
+                <div id="btn-close-lunas-wrapper" class="modal-footer px-0 pb-0 border-0 d-none">
+                    <button type="button" class="btn btn-primary fw-bold w-100" data-bs-dismiss="modal">Tutup Detail</button>
                 </div>
-            </form>
+            </div>
+        </form>
         </div>
     </div>
 </div>
@@ -361,16 +395,22 @@
         opacity: 0.2 !important;
     }
 </style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // Tangkap semua tombol mata/detail piutang
+    // 1. Deklarasi semua elemen modal & tombol secara terpusat
     const detailButtons = document.querySelectorAll('.btn-detail-piutang');
     const inputNominal = document.getElementById('nominal_pembayaran');
     const formBayar = document.getElementById('formBayarCicilan');
+    const formWrapper = document.getElementById('form-pembayaran-wrapper');
+    const alertLunas = document.getElementById('pesan-lunas-alert');
+    const btnCloseLunas = document.getElementById('btn-close-lunas-wrapper');
+    const filterStatus = document.getElementById('filter-status-piutang');
     
-    // Variabel global scope script untuk menyimpan angka murni sisa piutang aktif
+    // Variabel untuk menyimpan angka murni sisa piutang aktif
     let sisaPiutangMurni = 0;
 
+    // 2. Logika Pengisian Data & Kontrol Tampilan Modal
     detailButtons.forEach(button => {
         button.addEventListener('click', function () {
             // Ambil data-attributes dari tombol yang diklik
@@ -380,22 +420,52 @@ document.addEventListener('DOMContentLoaded', function () {
             const namaOrder = this.getAttribute('data-namaorder');
             sisaPiutangMurni = parseFloat(this.getAttribute('data-sisa')) || 0;
 
+            // 💡 SOLUSI AMAN: Ambil status dari data attribute tombol atau fallback pencarian teks badge yang dibersihkan
+            const row = this.closest('.row-piutang');
+            const badgeText = row ? row.querySelector('.badge').textContent.trim() : '';
+            // Kita cek apakah teks di dalam badge mengandung kata "Lunas" tapi BUKAN "Belum Lunas"
+            const isLunas = badgeText.includes('Lunas') && !badgeText.includes('Belum Lunas');
+
             // Suntik data ke elemen teks di dalam modal
             document.getElementById('modalNamaCustomer').innerText = namaCustomer;
             document.getElementById('modalNoOrder').innerText = noOrder;
             document.getElementById('modalNamaOrder').innerText = namaOrder;
             document.getElementById('modalSisaPiutang').innerText = 'Rp ' + sisaPiutangMurni.toLocaleString('id-ID');
 
-            // Reset field modal setiap kali baru dibuka
-            inputNominal.value = ''; 
-            document.getElementById('keterangan').value = ''; 
+            // Reset field input modal setiap kali baru dibuka
+            if (inputNominal) inputNominal.value = ''; 
+            const ketInput = document.getElementById('keterangan');
+            if (ketInput) ketInput.value = ''; 
 
             // Ubah secara dinamis URL Form Action agar mengarah ke view bayar_cicilan sesuai ID
-            formBayar.action = `/piutang/bayar/${piutangId}/`;
+            if (formBayar) formBayar.action = `/piutang/bayar/${piutangId}/`;
+
+            // 💡 KONTROL SEMBUNYI / TAMPILKAN ELEMEN
+            if (isLunas) {
+                // ❌ Sembunyikan bungkus input nominal, keterangan, & tombol simpan bawaan
+                if (formWrapper) formWrapper.classList.add('d-none');
+                
+                // Tampilkan teks alert sukses lunas & tombol tutup biru lebar
+                if (alertLunas) alertLunas.classList.remove('d-none');
+                if (btnCloseLunas) btnCloseLunas.classList.remove('d-none');
+                
+                // Matikan attribute 'required' input agar modal bisa diclose tanpa memicu validasi form
+                if (inputNominal) inputNominal.removeAttribute('required');
+            } else {
+                // 🟢 Kembalikan form cicilan normal jika status masih Belum Lunas
+                if (formWrapper) formWrapper.classList.remove('d-none');
+                
+                // Sembunyikan alert lunas beserta tombol tutup cadangannya
+                if (alertLunas) alertLunas.classList.add('d-none');
+                if (btnCloseLunas) btnCloseLunas.classList.add('d-none');
+                
+                // Pasang kembali attribute wajib isi (required) pada nominal pembayaran
+                if (inputNominal) inputNominal.setAttribute('required', 'required');
+            }
         });
     });
 
-    // --- REALTIME AUTO-TITIK SAAT MENGETIK NOMINAL PEMBAYARAN ---
+    // 3. --- REALTIME AUTO-TITIK SAAT MENGETIK NOMINAL PEMBAYARAN ---
     if (inputNominal) {
         inputNominal.addEventListener('input', function() {
             // Bersihkan semua karakter non-angka
@@ -419,13 +489,24 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // --- PEMBERSIH TITIK SEBELUM DATA SUBMIT MASUK KE BACKEND DJANGO ---
+    // 4. --- PEMBERSIH TITIK SEBELUM DATA SUBMIT MASUK KE BACKEND DJANGO ---
     if (formBayar) {
         formBayar.addEventListener('submit', function() {
             if (inputNominal) {
                 // Konversi kembali dari format bertitik (ex: 2.500.000) menjadi mentah (2500000)
                 inputNominal.value = dapatkanAngkaMurni(inputNominal.value);
             }
+        });
+    }
+
+    // 5. --- FILTER STATUS DROPDOWN AUTO-RELOAD ---
+    if (filterStatus) {
+        filterStatus.addEventListener('change', function() {
+            const statusPilihan = this.value;
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.set('status', statusPilihan);
+            urlParams.set('page', '1');
+            window.location.href = window.location.pathname + '?' + urlParams.toString();
         });
     }
 });
@@ -435,5 +516,6 @@ function dapatkanAngkaMurni(str) {
     if (!str) return 0;
     return parseInt(String(str).replace(/\./g, '')) || 0;
 }
+
 </script>
 {% endblock %}

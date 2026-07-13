@@ -10,16 +10,15 @@
     <div class="controls-group">
        <form method="GET" action="{% url 'hutang' %}" id="form-filter" class="d-flex gap-2 w-100 align-items-center">
             <div class="controls-group flex-grow-1">
-        {% include 'components/search_bar.html' with placeholder_text="Cari Nama atau Kode Suplier........." %}
-    </div>
-    
-    <div class="filter-group">
-        <select class="form-select custom-select border-dark" id="filter-status-hutang" style="width: 200px; height: 38px; margin-top: 37px; margin-left: 10px">
-            <option value="Semua" {% if status_aktif == 'Semua' %}selected{% endif %}>Semua Status</option>
-            <option value="Belum Lunas" {% if status_aktif == 'Belum Lunas' %}selected{% endif %}>Belum Lunas</option>
-            <option value="Lunas" {% if status_aktif == 'Lunas' %}selected{% endif %}>Lunas</option>
-        </select>
-    </div>
+                {% include 'components/search_bar.html' with placeholder_text="Cari Nama atau Kode Suplier........." %}
+            </div>
+            <div class="filter-group">
+                <select class="form-select custom-select border-dark" id="filter-status-hutang" style="width: 200px; height: 38px; margin-top: 37px; margin-left: 10px">
+                    <option value="Semua" {% if status_aktif == 'Semua' %}selected{% endif %}>Semua Status</option>
+                    <option value="Belum Lunas" {% if status_aktif == 'Belum Lunas' %}selected{% endif %}>Belum Lunas</option>
+                    <option value="Lunas" {% if status_aktif == 'Lunas' %}selected{% endif %}>Lunas</option>
+                </select>
+            </div>
         </form>
     </div>
     <div class="table-container-shadow">

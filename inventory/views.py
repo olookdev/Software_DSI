@@ -1182,17 +1182,27 @@ def edit_order(request, order_id):
 
 #=====================================piutang=====================================
 def piutang(request):
-    daftar_piutang_qs = PiutangPelanggan.objects.filter(status='Belum Lunas').select_related('order', 'order__customer').order_by('-updated_at')
+    # 💡 1. Tangkap status filter dari parameter GET URL, default ke 'Belum Lunas'
+    status_aktif = request.GET.get('status', 'Belum Lunas')
+    
+    # Base queryset awal (ambil semua data piutang dengan pre-fetch relasi terkait)
+    daftar_piutang_qs = PiutangPelanggan.objects.all().select_related('order', 'order__customer').order_by('-updated_at')
+    
+    # 💡 2. Lakukan penyaringan data berdasarkan pilihan filter status user
+    if status_aktif != 'Semua':
+        daftar_piutang_qs = daftar_piutang_qs.filter(status=status_aktif)
+        
+    # Paginator (Tetap aman membatasi 25 baris per halaman)
     paginator = Paginator(daftar_piutang_qs, 25)
     page_number = request.GET.get('page')
-    
     page_obj = paginator.get_page(page_number)
     
+    # 💡 3. Kirim status_aktif ke context agar tombol filter di HTML bisa tahu mana yang sedang menyala
     context = {
-        'page_obj': page_obj, 
+        'page_obj': page_obj,
+        'status_aktif': status_aktif,
     }
     return render(request, 'inventory/piutang.html', context)
-
 @login_required(login_url='login')
 def bayar_cicilan(request, piutang_id):
     if request.method == 'POST':
