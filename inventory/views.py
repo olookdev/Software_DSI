@@ -1353,6 +1353,25 @@ def home(request):
                 messages.success(request, "Kegiatan manual berhasil dihapus!")
             return redirect('home')
             
+        elif action == 'lunas_hutang':
+            hutang_id = request.POST.get('hutang_id')
+            if hutang_id:
+                hutang = Hutang.objects.filter(id=hutang_id).first()
+                if hutang:
+                    hutang.status = 'Lunas'
+                    hutang.sisa_hutang = 0
+                    hutang.save()
+                    
+                    arus = hutang.arus_stok
+                    if arus:
+                        total_harga_nota = arus.qty_arus * arus.harga_satuan
+                        arus.pembayaran = total_harga_nota
+                        arus.sisa_pembayaran = 0
+                        arus.save()
+                        
+                    messages.success(request, "Hutang telah ditandai Lunas!")
+            return redirect('home')
+            
         else:
             kegiatan_nama = request.POST.get('kegiatan')
             deskripsi = request.POST.get('deskripsi')
@@ -1371,7 +1390,6 @@ def home(request):
             return redirect('home') 
 
     daftar_hutang = Hutang.objects.filter(
-        status='Belum Lunas', 
         arus_stok__tenggat_pembayaran__isnull=False
     )
     
@@ -1384,10 +1402,14 @@ def home(request):
             events_data[tgl_str] = []
         
         supplier_nama = h.arus_stok.suplier.nama_suplier if h.arus_stok.suplier else "Supplier"
+        keterangan_nota = h.arus_stok.keterangan_arus or "Tanpa keterangan nota"
+        
         events_data[tgl_str].append({
+            'id': h.id,
             'tipe': 'debt',
+            'status_bayar': h.status, # 💡 KUNCI: Kirim status 'Lunas' / 'Belum Lunas' ke JavaScript
             'judul': f"Bayar Hutang: {supplier_nama}",
-            'detail': f"Sisa Hutang: Rp {h.sisa_hutang:,.0f}".replace(',', '.')
+            'detail': f"Sisa: Rp {h.sisa_hutang:,.0f} | Nota: {keterangan_nota}".replace(',', '.')
         })
 
     for k in daftar_kegiatan:

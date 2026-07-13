@@ -278,14 +278,28 @@
         if (eventsData[dateKey] && eventsData[dateKey].length > 0) {
             let html = '<div class="list-group">';
             eventsData[dateKey].forEach(ev => {
-                // Tentukan warna badge & teks berdasarkan tipe agenda
                 let badgeColor = 'bg-primary';
                 let tipeTeks = 'Kegiatan';
-                let tombolHapusHtml = ''; // Secara default kosong (Hutang & Piutang tidak bisa diubah/hapus)
-
+                let tombolHapusHtml = ''; 
                 if (ev.tipe === 'debt') {
-                    badgeColor = 'bg-danger';
-                    tipeTeks = 'Hutang';
+                    // Cek status bayar yang dikirim dari views.py
+                    if (ev.status_bayar === 'Lunas') {
+                        badgeColor = 'bg-success'; // Warna hijau untuk yang lunas
+                        tipeTeks = 'Hutang Lunas';
+                        tombolHapusHtml = '';     // Bersih tanpa tombol karena sudah lunas
+                    } else {
+                        badgeColor = 'bg-danger';  // Warna merah jika belum lunas
+                        tipeTeks = 'Hutang';
+                        
+                        // Tombol set lunas otomatis jika sisa bayar mau diselesaikan langsung
+                        tombolHapusHtml = `
+                            <form method="POST" action="" onsubmit="return confirm('Apakah Anda yakin hutang ini sudah dibayar Lunas?');" class="m-0">
+                                <input type="hidden" name="csrfmiddlewaretoken" value="${document.querySelector('[name=csrfmiddlewaretoken]').value}">
+                                <input type="hidden" name="action" value="lunas_hutang">
+                                <input type="hidden" name="hutang_id" value="${ev.id}">
+                            </form>
+                        `;
+                    }
                 } else if (ev.tipe === 'receivable') {
                     badgeColor = 'bg-success';
                     tipeTeks = 'Piutang';
