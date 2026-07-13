@@ -1238,7 +1238,10 @@ def bayar_cicilan(request, piutang_id):
 #=====================================Hutang=====================================
 @login_required(login_url='login')
 def hutang(request):
-    if request.method == 'POST':
+    # ==========================================
+    # LOGIKA POST (PROSES CICILAN UTANG)
+    # ==========================================
+    if request.method == 'POST':    
         hutang_id = request.POST.get('id_hutang')
         nominal_cicil = request.POST.get('nominal_cicil')
         
@@ -1249,9 +1252,13 @@ def hutang(request):
             
             if nominal_cicil <= 0:
                 messages.error(request, "Nominal pembayaran harus lebih dari 0!")
+                return redirect('hutang') # ✅ Sekarang aman (ditambahkan return)
+                
             elif nominal_cicil > hutang_obj.sisa_hutang:
                 sisa_formatted = f"{hutang_obj.sisa_hutang:,.0f}".replace(',', '.')
                 messages.error(request, f"Nominal pembayaran melebihi sisa utang (Maksimal Rp {sisa_formatted})")
+                return redirect('hutang') # ✅ Sekarang aman (ditambahkan return)
+                
             else:
                 arus_stok_obj.pembayaran += nominal_cicil
                 arus_stok_obj.save() 
@@ -1264,9 +1271,21 @@ def hutang(request):
             messages.error(request, "Terjadi kesalahan saat memproses pembayaran utang.")
             return redirect('hutang')
 
-    hutang_queryset = Hutang.objects.filter(status='Belum Lunas').order_by('-arus_stok__tanggal')
+    # ==========================================
+    # LOGIKA GET (FILTER DATA & RENDER HALAMAN)
+    # ==========================================
+    status_aktif = request.GET.get('status', 'Belum Lunas') # Default: Belum Lunas
+    
+    # Ambil base queryset
+    hutang_queryset = Hutang.objects.all().order_by('-arus_stok__tanggal')
+    
+    # Filter data berdasarkan status pilihan user (Lunas / Belum Lunas)
+    if status_aktif != 'Semua':
+        hutang_queryset = hutang_queryset.filter(status=status_aktif)
+    
     daftar_hutang_custom = []
     
+    # Kelompokkan item barang berdasarkan no_invoice
     for h in hutang_queryset:
         arus_utama = h.arus_stok
         items_list = []
@@ -1301,10 +1320,16 @@ def hutang(request):
             'items_json': json.dumps(items_list)
         })
     
+    # Bungkus data ke dalam context
     context = {
         'daftar_hutang': daftar_hutang_custom,
+        'status_aktif': status_aktif,
     }
+    
+    # ✅ SEKARANG DIKEMBALIKAN DENGAN BERSIH BERSAMA CONTEXT-NYA
     return render(request, 'inventory/hutang.html', context)
+
+    
 #=====================================Transaksi=====================================
 def transaksi(request):
     if request.method == 'POST':
