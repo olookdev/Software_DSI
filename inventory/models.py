@@ -126,6 +126,7 @@ class ArusStok(models.Model):
     pembayaran = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     sisa_pembayaran = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     tenggat_pembayaran = models.DateField(blank=True, null=True)
+    no_invoice = models.CharField(max_length=100, blank=True, null=True)
 
     @property
     def total_biaya(self):
@@ -276,8 +277,7 @@ class Transaksi(models.Model):
 
 class Hutang(models.Model):
     arus_stok = models.OneToOneField('ArusStok', on_delete=models.CASCADE, related_name='hutang_detail')
-    sisa_hutang = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    
+    sisa_hutang = models.DecimalField(max_digits=12, decimal_places=2, default=0)    
     STATUS_CHOICES = [
         ('Belum Lunas', 'Belum Lunas'),
         ('Lunas', 'Lunas'),

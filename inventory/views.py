@@ -683,10 +683,10 @@ def tambah_arus_stok(request):
         v_pembayaran = request.POST.get('pembayaran')
         v_tenggat = request.POST.get('tenggat_pembayaran')
         v_tanggal_custom = request.POST.get('tanggal')
+        v_no_invoice = request.POST.get('no_invoice') 
 
         try:
             with transaction.atomic():
-                
                 waktu_transaksi = v_tanggal_custom if v_tanggal_custom else timezone.now()
                 
                 if v_jenis_arus == 'Pemakaian':
@@ -706,6 +706,7 @@ def tambah_arus_stok(request):
                     barang.save()
 
                     ArusStok.objects.create(
+                        no_invoice=v_no_invoice,
                         tanggal=waktu_transaksi,
                         barang=barang,
                         jenis_arus=v_jenis_arus,
@@ -766,6 +767,7 @@ def tambah_arus_stok(request):
                         brg.save()
 
                         ArusStok.objects.create(
+                            no_invoice=v_no_invoice, 
                             tanggal=waktu_transaksi,
                             barang=brg,
                             jenis_arus=v_jenis_arus,
@@ -780,6 +782,9 @@ def tambah_arus_stok(request):
                     messages.success(request, f"Berhasil memborong {len(list_data_item)} item barang dari supplier {suplier_obj.nama_suplier}.")
 
         except Exception as e:
+            import traceback
+            traceback.print_exc() 
+            
             messages.error(request, f"Gagal memproses transaksi: {str(e)}")
 
     return redirect('log_arus_stok')
@@ -1259,14 +1264,47 @@ def hutang(request):
             messages.error(request, "Terjadi kesalahan saat memproses pembayaran utang.")
             return redirect('hutang')
 
-    daftar_hutang = Hutang.objects.filter(status='Belum Lunas').order_by('-arus_stok__tanggal')
+    hutang_queryset = Hutang.objects.filter(status='Belum Lunas').order_by('-arus_stok__tanggal')
+    daftar_hutang_custom = []
+    
+    for h in hutang_queryset:
+        arus_utama = h.arus_stok
+        items_list = []
+        
+        if arus_utama:
+            if arus_utama.no_invoice:
+                semua_item_nota = ArusStok.objects.filter(
+                    jenis_arus='Pembelian',
+                    no_invoice=arus_utama.no_invoice
+                )
+                for item in semua_item_nota:
+                    items_list.append({
+                        'kode_barang': item.barang.kode_barang if item.barang else '-',
+                        'nama_barang': item.barang.nama_barang if item.barang else '-',
+                        'qty': item.qty_arus
+                    })
+            else:
+                items_list.append({
+                    'kode_barang': arus_utama.barang.kode_barang if arus_utama.barang else '-',
+                    'nama_barang': arus_utama.barang.nama_barang if arus_utama.barang else '-',
+                    'qty': arus_utama.qty_arus
+                })
+        else:
+            items_list.append({
+                'kode_barang': '-',
+                'nama_barang': 'Tidak diketahui',
+                'qty': 0
+            })
+
+        daftar_hutang_custom.append({
+            'obj': h,
+            'items_json': json.dumps(items_list)
+        })
     
     context = {
-        'daftar_hutang': daftar_hutang,
+        'daftar_hutang': daftar_hutang_custom,
     }
     return render(request, 'inventory/hutang.html', context)
-
-
 #=====================================Transaksi=====================================
 def transaksi(request):
     if request.method == 'POST':
@@ -1407,7 +1445,7 @@ def home(request):
         events_data[tgl_str].append({
             'id': h.id,
             'tipe': 'debt',
-            'status_bayar': h.status, # 💡 KUNCI: Kirim status 'Lunas' / 'Belum Lunas' ke JavaScript
+            'status_bayar': h.status,
             'judul': f"Bayar Hutang: {supplier_nama}",
             'detail': f"Sisa: Rp {h.sisa_hutang:,.0f} | Nota: {keterangan_nota}".replace(',', '.')
         })
