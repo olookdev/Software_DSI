@@ -1722,14 +1722,18 @@ def hapus_stok_opname(request, pk):
 def faktur_lunas(request, order_id):
     order_obj = get_object_or_404(OrderUtama, id=order_id)
     
-    if order_obj.sisa_bayar > 0:
-        messages.error(
-            request, 
-            f"Gagal membuka Faktur! Order {order_obj.no_order} belum lunas. "
-            f"Sisa kekurangan masih Rp {int(order_obj.sisa_bayar):,}".replace(',', '.')
-        )
+    # Cek apakah sudah lunas dan belum memiliki kode faktur
+    if order_obj.sisa_bayar <= 0 and not order_obj.kode_faktur:
+        tanggal_sekarang = timezone.now().date()
+        order_obj.tgl_pelunasan = tanggal_sekarang
+        order_obj.kode_faktur = order_obj.generate_kode_faktur(tanggal_sekarang)
+        order_obj.save()
+    
+    # Cek apakah user mencoba akses faktur pada order yang belum lunas
+    elif order_obj.sisa_bayar > 0:
+        messages.error(request, "Order belum lunas!")
         return redirect('list_order')
-        
+
     context = {
         'order': order_obj,
         'tgl_cetak_sekarang': timezone.now(),

@@ -195,6 +195,9 @@ class OrderUtama(models.Model):
     alasan_hapus = models.TextField(blank=True, null=True, verbose_name="Alasan Dihapus / Dibatalkan")
     deleted_at = models.DateTimeField(blank=True, null=True, verbose_name="Waktu Dihapus")
 
+    kode_faktur = models.CharField(max_length=50, blank=True, null=True, verbose_name="Kode Faktur")
+    tgl_pelunasan = models.DateField(blank=True, null=True, verbose_name="Tanggal Pelunasan")
+
     def save(self, *args, **kwargs):
         if not self.no_order:
             sekarang = datetime.now()
@@ -218,6 +221,17 @@ class OrderUtama(models.Model):
 
     class Meta:
         verbose_name_plural = "Data Order Utama"
+
+    def generate_kode_faktur(self, tanggal):
+        """Fungsi untuk generate kode faktur: F + YYMM + - + 0001"""
+        tahun_bulan = tanggal.strftime('%y%m')
+        prefix = f"F{tahun_bulan}-"
+        
+        # Hitung jumlah faktur di bulan/tahun tersebut
+        jumlah = OrderUtama.objects.filter(
+            kode_faktur__startswith=prefix
+        ).count()
+        return f"{prefix}{(jumlah + 1):04d}"
 
 class OrderDetail(models.Model):
     order_utama = models.ForeignKey(OrderUtama, on_delete=models.CASCADE, related_name='items')

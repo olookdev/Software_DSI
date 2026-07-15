@@ -196,7 +196,8 @@
             </button>
         </div>
         <div>
-            <button class="btn btn-print" onclick="downloadFaktur();">
+            <button class="btn btn-print" data-tipe="{% if is_faktur_lunas %}Faktur{% else %}Faktur-Order{% endif %}"
+                    onclick="downloadFaktur(this);">
                 💾 Save {% if is_faktur_lunas %}Faktur{% else %}Faktur Order{% endif %}
             </button>
         </div>
@@ -217,17 +218,14 @@
                 </td>
                 <td class="right-header">
                     
-                    <div class="spk-title">
-                        {% if is_faktur_lunas %}
-                            Faktur 
-                        {% else %}
-                            Faktur Order
-                        {% endif %}
-                    </div>
-                    
-                    <div class="tgl-cetak">
-                        Tgl. Cetak : <span id="tgl-cetak-isi">{{ tgl_cetak_sekarang|date:"H:i, d-m-Y" }}</span>
-                    </div>
+                <div class="spk-title">
+                    {% if is_faktur_lunas %}
+                        <div style="font-size: 24px; font-weight: bold;">Faktur</div>
+                        <div style="font-size: 16px; margin-top: 5px;">No: {{ order.kode_faktur }}</div>
+                    {% else %}
+                        <div style="font-size: 24px; font-weight: bold;">Faktur Order</div>
+                    {% endif %}
+                </div>
                 </td>
             </tr>
         </table>
@@ -235,21 +233,24 @@
         <hr>
 
         <table class="info-section">
-            <tr style = "font-size: 13px;">
+            <tr style="font-size: 13px;">
                 <td class="label-bold" style="width: 10%;">Customer</td>
                 <td style="width: 40%;">: {{ order.customer }}</td>
 
                 <td class="label-bold" style="width: 13%;">No. Order</td>
                 <td style="width: 20%;"> <span id="pdf-no-order">{{ order.no_order }}</span></td>
-                                                
+                
                 <td class="label-bold" style="width: 10%; white-space: nowrap;">Karyawan</td>
                 <td style="width: 7%; white-space: nowrap;">: SALMA </td>
             </tr>
-            <tr style = "font-size: 13px;">
-                <td></td>
-                <td></td>
+            
+            <tr style="font-size: 13px;">
+                <td ></td>
+                <td ></td>
+                
                 <td class="label-bold">Tanggal</td>
                 <td>: {{ order.tgl_order|date:"d M Y" }}</td>
+
                 <td></td>
                 <td></td>
             </tr>
@@ -357,44 +358,41 @@ function cetakFaktur() {
     window.print();
 }
 
-function downloadFaktur() {
-    // 1. Sembunyikan area tombol agar tidak masuk ke PDF
+function downloadFaktur(btnElement) {
+    // 1. Sembunyikan area tombol
     const tombolArea = document.querySelector('.no-print-area');
     if (tombolArea) tombolArea.style.setProperty('display', 'none', 'important');
 
-    // 2. Tembak elemen utama area Faktur Mas (Ganti 'area-spk' menjadi 'area-faktur' jika id-nya berbeda)
-    const element = document.getElementById('area-faktur') || document.getElementById('area-spk') || document.body;
+    // 2. Ambil tipe dokumen dari attribute tombol yang diklik
+    // btnElement adalah tombol yang diklik (Save Faktur/Faktur Order)
+    const tipeDokumen = btnElement.getAttribute('data-tipe'); // Hasilnya: "Faktur" atau "Faktur-Order"
 
-    // 3. TENTUKAN NAMA FILE SECARA DINAMIS (Faktur / Faktur-Order + No Order)
+    // 3. Ambil nomor order/faktur untuk nama file
     const elNoOrder = document.getElementById('pdf-no-order');
-    const noOrderText = elNoOrder ? elNoOrder.innerText.trim() : 'Document';
+    const elKodeFaktur = document.getElementById('pdf-kode-faktur');
     
-    // Logika penamaan berdasarkan status lunas dari Django
-    let tipeDokumen = "{% if is_faktur_lunas %}Faktur{% else %}Faktur-Order{% endif %}";
-    let namaFileCustom = `${tipeDokumen}-${noOrderText}.pdf`;
+    // Jika ada kode faktur, pakai kode faktur, jika tidak ada pakai no order
+    let identitas = (elKodeFaktur && elKodeFaktur.innerText.trim() !== "") 
+                    ? elKodeFaktur.innerText.trim() 
+                    : elNoOrder.innerText.trim();
 
-    // 4. SETTING KONFIGURASI HTML2PDF (Sama aman & presisinya dengan setingan SPK)
+    let namaFileCustom = `${tipeDokumen}-${identitas}.pdf`;
+
+    // 4. Konfigurasi dan Download
+    const element = document.getElementById('area-faktur') || document.body;
     const opsi = {
-        margin:       [0.3, 0.4, 0.3, 0.4], 
-        filename:     namaFileCustom,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { 
-            scale: 2,               
-            useCORS: true,
-            logging: false,
-            scrollX: 0,
-            scrollY: 0
-        }, 
-        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        margin: [0.3, 0.4, 0.3, 0.4],
+        filename: namaFileCustom, // Sekarang nama filenya dinamis
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
     };
 
-    // 5. JALANKAN PROSES DOWNLOAD
     html2pdf().set(opsi).from(element).save().then(() => {
-        // Tampilkan kembali tombol setelah download selesai
-        if (tombolArea) tombolArea.style.display = 'flex'; 
+        if (tombolArea) tombolArea.style.display = 'flex';
     }).catch((err) => {
         console.error(err);
-        if (tombolArea) tombolArea.style.display = 'flex'; 
+        if (tombolArea) tombolArea.style.display = 'flex';
     });
 }
 </script>
