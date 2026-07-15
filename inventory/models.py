@@ -67,7 +67,11 @@ class HargaJual(models.Model):
     harga_jual_akhir = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     updated_at = models.DateTimeField(auto_now=True)
 
-    bahan_baku = models.ManyToManyField('List_Stok', through='HargaJualBahan', related_name='produk_jual')
+    bahan_baku = models.ManyToManyField(
+        'List_Stok', 
+        through='HargaJualBahan', 
+        through_fields=('harga_jual', 'barang'),
+        related_name='produk_jual')
 
     def save(self, *args, **kwargs):
         if not self.kode_produk:
@@ -84,7 +88,13 @@ class HargaJual(models.Model):
 
     @property
     def total_modal(self):
-        total_bahan = sum(item.harga_stok_terpilih.harga_satuan for item in self.list_bahan.all())
+        total_bahan = 0
+        for item in self.list_bahan.all():
+            if item.harga_stok_terpilih: # Jika stok
+                total_bahan += item.harga_stok_terpilih.harga_satuan
+            elif item.produk_jadi_terpilih: # Jika produk jadi
+                total_bahan += item.produk_jadi_terpilih.harga_jual_akhir
+                
         return total_bahan + self.biaya_tenaga_kerja + self.biaya_listrik
 
     @property
@@ -100,15 +110,18 @@ class HargaJual(models.Model):
     def __str__(self):
         return f"{self.kode_produk} - {self.nama_produk}"
 
-
 class HargaJualBahan(models.Model):
     harga_jual = models.ForeignKey(HargaJual, on_delete=models.CASCADE, related_name='list_bahan')
-    barang = models.ForeignKey('List_Stok', on_delete=models.CASCADE)
     
-    harga_stok_terpilih = models.ForeignKey('HargaStok', on_delete=models.RESTRICT)
+    # Gunakan null=True karena tidak selalu terisi (tergantung apakah stok atau produk jadi)
+    barang = models.ForeignKey('List_Stok', on_delete=models.CASCADE, null=True, blank=True)
+    harga_stok_terpilih = models.ForeignKey('HargaStok', on_delete=models.RESTRICT, null=True, blank=True)
+    
+    # Field untuk menampung produk jadi
+    produk_jadi_terpilih = models.ForeignKey(HargaJual, on_delete=models.CASCADE, null=True, blank=True, related_name='digunakan_sebagai_bahan')
 
     def __str__(self):
-        return f"Bahan: {self.barang.nama_barang} di {self.harga_jual.nama_produk}"
+        return f"Bahan untuk {self.harga_jual.nama_produk}"
     
 class ArusStok(models.Model):
     JENIS_ARUS_CHOICES = [

@@ -371,27 +371,29 @@ def daftar_harga(request):
     pilihan_barang = List_Stok.objects.all().select_related('jenis').order_by('nama_barang')
     barang_data = []
 
+    # 2. Ambil data dari List_Stok (Bahan Baku)
+    pilihan_barang = List_Stok.objects.all().order_by('nama_barang')
     for barang in pilihan_barang:
-        id_angka_barang = int(barang.id)
-        stok_termahal_item = HargaStok.objects.filter(barang_id=id_angka_barang).order_by('-harga_satuan').first()
-
-        if stok_termahal_item:
-            harga_termahal = stok_termahal_item.harga_satuan
-            id_stok = stok_termahal_item.id
-        else:
-            harga_termahal = 0
-            id_stok = None
-
+        stok_termahal = HargaStok.objects.filter(barang_id=barang.id).order_by('-harga_satuan').first()
         barang_data.append({
-            'id': barang.id,
-            'kode_barang': barang.kode_barang,
-            'nama_barang': barang.nama_barang,
-            'keterangan': barang.keterangan or '-',
-            'harga': float(harga_termahal) if harga_termahal else 0,
-            'id_stok': id_stok,
+            'id': str(barang.id),
+            'nama_tampilan': barang.nama_barang, 
+            'harga': float(stok_termahal.harga_satuan) if stok_termahal else 0,
         })
 
+    # 3. Ambil data dari HargaJual (Produk Jadi)
+    # PASTIKAN bagian ini tidak terlewat dan tidak dibungkus 'if' yang salah
+    semua_jual = HargaJual.objects.all()
+    for p in semua_jual:
+        barang_data.append({
+            'id': f"jual_{p.id}",
+            'nama_tampilan': p.nama_produk, 
+            'harga': float(p.harga_jual_akhir),
+        })
+
+    # 4. Pastikan barang_data dikirim ke context
     context = {
+        'barang_data': barang_data,
         'harga_list': data_harga_stok, 
         'barang_data': barang_data,     
         'semua_suplier': Suplier.objects.all(),        
@@ -431,6 +433,7 @@ def daftar_harga_jual(request):
             v_keterangan = request.POST.get('keterangan_produk')
             v_jual = float(request.POST.get('harga_jual_akhir') or 0)
             id_bahan_terpilih = request.POST.getlist('bahan_terpilih')
+            print("DEBUG: BAHAN TERPILIH:", id_bahan_terpilih)
 
             if v_nama_produk and id_bahan_terpilih:
                 produk_baru = HargaJual.objects.create(
@@ -441,30 +444,44 @@ def daftar_harga_jual(request):
                     harga_jual_akhir=v_jual
                 )
 
-                for barang_id in id_bahan_terpilih:
-                    if barang_id: 
-                        stok_termahal = HargaStok.objects.filter(barang_id=barang_id).order_by('-harga_satuan').first()
+                for item_id in id_bahan_terpilih:
+                    if not item_id: continue
+                    
+                    if item_id.startswith('jual_'):
+                        id_asli = item_id.replace('jual_', '')
+                        # Gunakan cara ini agar kolom terisi secara eksplisit
+                        jual_bahan = HargaJualBahan(harga_jual=produk_baru)
+                        jual_bahan.produk_jadi_terpilih_id = int(id_asli) # Pastikan nama kolom ini benar sesuai database
+                        jual_bahan.barang = None
+                        jual_bahan.harga_stok_terpilih = None
+                        jual_bahan.save()
+                        
+                    else:
+                        stok_termahal = HargaStok.objects.filter(barang_id=item_id).order_by('-harga_satuan').first()
                         if stok_termahal:
-                            HargaJualBahan.objects.create(
-                                harga_jual=produk_baru,
-                                barang_id=barang_id,
-                                harga_stok_terpilih=stok_termahal
-                            )
-            return redirect('/daftar_harga/#harga-jual')
+                            jual_bahan = HargaJualBahan(harga_jual=produk_baru)
+                            jual_bahan.barang_id = int(item_id)
+                            jual_bahan.harga_stok_terpilih = stok_termahal
+                            jual_bahan.produk_jadi_terpilih = None
+                            jual_bahan.save()
+                return redirect('/daftar_harga/#harga-jual')
         
+        # Else jika POST untuk menambah stok (barang, suplier, harga_satuan)
         else:
             barang_id = request.POST.get('barang')
             suplier_id = request.POST.get('suplier') 
             harga = request.POST.get('harga_satuan')
-            HargaStok.objects.create(barang_id=barang_id, suplier_id=suplier_id, harga_satuan=harga)
+            if barang_id and suplier_id and harga:
+                HargaStok.objects.create(barang_id=barang_id, suplier_id=suplier_id, harga_satuan=harga)
             return redirect('daftar_harga')
 
+    # --- BAGIAN GET / TAMPILAN ---
     query_jual = request.GET.get('search_jual', '')
-
-    try:
-        harga_jual_query = HargaJual.objects.prefetch_related('list_bahan__barang', 'list_bahan__harga_stok_terpilih').all()
-    except Exception:
-        harga_jual_query = HargaJual.objects.all()
+    harga_jual_query = HargaJual.objects.prefetch_related(
+        'list_bahan__barang', 
+        'list_bahan__harga_stok_terpilih', 
+        'list_bahan__produk_jadi_terpilih'
+    ).all()
 
     if query_jual:
         harga_jual_query = harga_jual_query.filter(
@@ -473,41 +490,43 @@ def daftar_harga_jual(request):
         )
     
     harga_jual_list = harga_jual_query.order_by('id')
+    
+    # Statistik
     jual_termahal_obj = HargaJual.objects.all().order_by('-harga_jual_akhir').first()
     jual_termurah_obj = HargaJual.objects.all().order_by('harga_jual_akhir').first()
 
-    if jual_termahal_obj and jual_termahal_obj.nama_produk:
-        produk_termahal = f"{jual_termahal_obj.nama_produk} (Rp {int(jual_termahal_obj.harga_jual_akhir):,})"
-    else:
-        produk_termahal = "-"
+    produk_termahal = f"{jual_termahal_obj.nama_produk} (Rp {int(jual_termahal_obj.harga_jual_akhir):,})" if jual_termahal_obj else "-"
+    produk_termurah = f"{jual_termurah_obj.nama_produk} (Rp {int(jual_termurah_obj.harga_jual_akhir):,})" if jual_termurah_obj else "-"
 
-    if jual_termurah_obj and jual_termurah_obj.nama_produk:
-        produk_termurah = f"{jual_termurah_obj.nama_produk} (Rp {int(jual_termurah_obj.harga_jual_akhir):,})"
-    else:
-        produk_termurah = "-"
-
+    # Data untuk Datalist (Stok + Produk Jadi)
     data_harga_stok = HargaStok.objects.all().select_related('barang', 'suplier').order_by('-id')
     pilihan_barang = List_Stok.objects.all().select_related('jenis').order_by('nama_barang')
     barang_data = []
 
+    # 2. Ambil data dari List_Stok (Bahan Baku)
+    pilihan_barang = List_Stok.objects.all().order_by('nama_barang')
     for barang in pilihan_barang:
-        id_angka_barang = int(barang.id)
-        stok_termahal_item = HargaStok.objects.filter(barang_id=id_angka_barang).order_by('-harga_satuan').first()
-        harga_termahal = stok_termahal_item.harga_satuan if stok_termahal_item else 0
-        id_stok = stok_termahal_item.id if stok_termahal_item else None
-
+        stok_termahal = HargaStok.objects.filter(barang_id=barang.id).order_by('-harga_satuan').first()
         barang_data.append({
-            'id': barang.id,
-            'kode_barang': barang.kode_barang,
-            'nama_barang': barang.nama_barang,
-            'keterangan': barang.keterangan or '-',
-            'harga': float(harga_termahal) if harga_termahal else 0,
-            'id_stok': id_stok,
+            'id': str(barang.id),
+            'nama_tampilan': barang.nama_barang, 
+            'harga': float(stok_termahal.harga_satuan) if stok_termahal else 0,
         })
 
+    # 3. Ambil data dari HargaJual (Produk Jadi)
+    # PASTIKAN bagian ini tidak terlewat dan tidak dibungkus 'if' yang salah
+    semua_jual = HargaJual.objects.all()
+    for p in semua_jual:
+        barang_data.append({
+            'id': f"jual_{p.id}",
+            'nama_tampilan': p.nama_produk, 
+            'harga': float(p.harga_jual_akhir),
+        })
+
+    # 4. Pastikan barang_data dikirim ke context
     context = {
+        'barang_data': barang_data,
         'harga_list': data_harga_stok, 
-        'barang_data': barang_data,     
         'semua_suplier': Suplier.objects.all(),        
         'semua_barang': pilihan_barang, 
         'harga_jual_list': harga_jual_list,
@@ -536,16 +555,30 @@ def edit_harga_jual(request):
             produk.harga_jual_akhir = v_jual
             produk.save()
 
+            # Hapus relasi lama
             HargaJualBahan.objects.filter(harga_jual=produk).delete()
 
-            for barang_id in id_bahan_terpilih:
-                if barang_id:
-                    stok_termahal = HargaStok.objects.filter(barang_id=barang_id).order_by('-harga_satuan').first()
+            # Simpan relasi baru
+            for item_id in id_bahan_terpilih:
+                if not item_id: continue
+                
+                if item_id.startswith('jual_'):
+                    id_asli = item_id.replace('jual_', '')
+                    # MENGGUNAKAN FIELD YANG BENAR
+                    HargaJualBahan.objects.create(
+                        harga_jual=produk,
+                        produk_jadi_terpilih_id=int(id_asli),
+                        barang=None,
+                        harga_stok_terpilih=None
+                    )
+                else:
+                    stok_termahal = HargaStok.objects.filter(barang_id=item_id).order_by('-harga_satuan').first()
                     if stok_termahal:
                         HargaJualBahan.objects.create(
                             harga_jual=produk,
-                            barang_id=barang_id,
-                            harga_stok_terpilih=stok_termahal
+                            barang_id=int(item_id),
+                            harga_stok_terpilih=stok_termahal,
+                            produk_jadi_terpilih=None
                         )
         except HargaJual.DoesNotExist:
             pass
