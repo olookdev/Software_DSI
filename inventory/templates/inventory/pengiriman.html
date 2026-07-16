@@ -296,37 +296,59 @@
             const rows = tbodyInput.querySelectorAll('tr');
             let selectedItems = [];
 
-            // Validasi dan kumpulkan item dari baris tabel input
+            // Validasi awal sebelum eksekusi pengurangan qty
             for (let row of rows) {
                 const kodeItem = row.querySelector('.select-kode-item').value;
-                const namaItem = row.querySelector('.input-nama-item').value;
                 const qty = parseInt(row.querySelector('.input-qty').value) || 0;
+                const namaItem = row.querySelector('.input-nama-item').value;
                 const ukuran = row.querySelector('.input-ukuran').value;
 
                 if (!kodeItem || qty <= 0) {
                     alert('Pastikan Kode Item dipilih dan Qty lebih dari 0.');
                     return;
                 }
+
+                // Validasi tambahan: Cek apakah qty yang diinput melebihi sisa qty di tabel atas
+                if (!validateAvailableQty(kodeItem, qty)) {
+                    alert(`Kuantitas untuk item ${kodeItem} melebihi sisa sediaan di tabel atas.`);
+                    return;
+                }
+
                 selectedItems.push({ kode_item: kodeItem, nama_item: namaItem, qty: qty, ukuran: ukuran });
             }
 
-            // 1. Kurangi Qty di Tabel Atas secara real-time
-            rows.forEach(row => {
-                const kodeItem = row.querySelector('.select-kode-item').value;
-                const qty = parseInt(row.querySelector('.input-qty').value) || 0;
-                reduceUpperTableQty(kodeItem, qty);
+            // 1. Kurangi Qty di Tabel Atas secara real-time setelah dipastikan lolos validasi
+            selectedItems.forEach(item => {
+                reduceUpperTableQty(item.kode_item, item.qty);
             });
 
             // 2. Simpan ke data state array
             const currentDelivery = { alamat, penerima, no_hp: noHp, items: selectedItems };
             allSplitDeliveries.push(currentDelivery);
 
-            // 3. Render list box baru di bawah (Sesuai SS Desain)
+            // 3. Render list box baru di bawah
             renderSplitList();
 
-            // 4. Reset input tabel bawah agar bisa dipakai ketik alamat/item split baru berikutnya
+            // 4. Reset input tabel bawah agar bisa dipakai kembali
             resetInputForm();
         });
+
+        // Fungsi pembantu untuk validasi batas maksimum input kuantitas
+        function validateAvailableQty(kodeItem, qtyToReduce) {
+            const upperTableRows = document.querySelectorAll('.card-body > .table-responsive:first-of-type tbody tr');
+            let isValid = true;
+            upperTableRows.forEach(row => {
+                const kodeUpper = row.querySelector('td:first-child').textContent.trim();
+                const badgeUpper = row.querySelector('td:nth-child(3) .badge');
+                if (kodeUpper === kodeItem && badgeUpper) {
+                    let currentQty = parseInt(badgeUpper.textContent) || 0;
+                    if (qtyToReduce > currentQty) {
+                        isValid = false;
+                    }
+                }
+            });
+            return isValid;
+        }
 
         function reduceUpperTableQty(kodeItem, qtyToReduce) {
             const upperTableRows = document.querySelectorAll('.card-body > .table-responsive:first-of-type tbody tr');
@@ -335,6 +357,7 @@
                 const badgeUpper = row.querySelector('td:nth-child(3) .badge');
                 if (kodeUpper === kodeItem && badgeUpper) {
                     let currentQty = parseInt(badgeUpper.textContent) || 0;
+                    // Mengurangi kuantitas secara matematis numerik murni
                     badgeUpper.textContent = Math.max(0, currentQty - qtyToReduce);
                 }
             });
