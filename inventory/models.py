@@ -3,6 +3,7 @@ from django.utils import timezone
 from datetime import datetime
 from django.dispatch import receiver
 from django.db.models.signals import post_save
+from django.db.models import Sum
 
 class Suplier(models.Model):
     kode_suplier = models.CharField(max_length=20, unique=True)
@@ -195,6 +196,17 @@ class OrderUtama(models.Model):
             self.no_order = f"ORD-{tahun_bulan}-{str(nomor_baru).zfill(3)}"
             
         super(OrderUtama, self).save(*args, **kwargs)
+        
+
+    def sisa_qty_per_item(self):
+        hasil = {}
+        for item in self.items.all():
+            total_terkirim = PengirimanDetail.objects.filter(
+                order_detail=item
+            ).aggregate(total=Sum("qty_kirim"))["total"] or 0
+            
+            hasil[item.id] = item.qty - total_terkirim
+        return hasil
 
     def __str__(self):
         return f"{self.no_order} - {self.nama_order}"
@@ -322,3 +334,26 @@ class StokOpname(models.Model):
 
     class Meta:
         verbose_name_plural = "Stok Opname"
+        
+class Pengiriman(models.Model):
+    order = models.ForeignKey(OrderUtama, on_delete=models.CASCADE, related_name="pengiriman")
+    alamat = models.TextField()
+    penerima = models.CharField(max_length=100)
+    no_hp = models.CharField(max_length=20)
+    tanggal_kirim = models.DateTimeField(default=timezone.now)
+    keterangan = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Pengiriman {self.order.no_order} - {self.tanggal_kirim.strftime('%d-%m-%Y')}"
+
+    class Meta:
+        verbose_name_plural = "Data Pengiriman"
+        
+
+class PengirimanDetail(models.Model):
+    pengiriman = models.ForeignKey(Pengiriman, on_delete=models.CASCADE, related_name="detail_items")
+    order_detail = models.ForeignKey(OrderDetail, on_delete=models.CASCADE, related_name="riwayat_kirim")
+    qty_kirim = models.IntegerField(default=1)
+    
+    def __str__(self):
+        return f"{self.pengiriman} - {self.order_detail.nama_item} ({self.qty_kirim})"

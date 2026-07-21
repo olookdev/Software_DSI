@@ -33,16 +33,16 @@
                         </tr>
                     </thead>
                     <tbody>
-                        
+
                         {% for item in items %}
-                            <tr>
-                                <td class="py-3 text-muted">{{ item.kode_item }}</td>
-                                <td class="py-3 fw-medium">{{ item.nama_item }}</td>
-                                <td class="py-3">
-                                    <span class="badge bg-secondary-subtle text-secondary px-3 py-2 rounded-pill">{{ item.qty }}</span>
-                                </td>
-                                <td class="py-3 text-muted">{{ item.panjang | floatformat:1 }} × {{ item.lebar | floatformat:1 }}</td>
-                            </tr>
+                        <tr data-id="{{ item.id }}">
+                            <td class="py-3 text-muted">{{ item.kode_item }}</td>
+                            <td class="py-3 fw-medium">{{ item.nama_item }}</td>
+                            <td class="py-3">
+                                <span class="badge bg-secondary-subtle text-secondary px-3 py-2 rounded-pill">{{ item.sisa_qty }}</span>
+                            </td>
+                            <td class="py-3 text-muted">{{ item.panjang | floatformat:1 }} × {{ item.lebar | floatformat:1 }}</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -54,7 +54,8 @@
                 <div class="col-12 text-center">
                     <div class="map-container rounded-4 overflow-hidden border shadow-sm d-inline-block w-100"
                         style="height: 400px; max-width: 700px;">
-                        <iframe src="https://maps.google.com/maps?q=-6.175392,106.827153&t=&z=13&ie=UTF8&iwloc=&output=embed"
+                        <iframe
+                            src="https://maps.google.com/maps?q=-6.175392,106.827153&t=&z=13&ie=UTF8&iwloc=&output=embed"
                             width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"
                             referrerpolicy="no-referrer-when-downgrade">
                         </iframe>
@@ -99,7 +100,7 @@
                                 </div>
                             </div>
                         </div>
-            
+
                         <div class="table-responsive rounded-3 mb-3">
                             <table class="table table-bordered align-middle text-center m-0" id="table-input-item">
                                 <thead class="table-light">
@@ -114,20 +115,24 @@
                                 <tbody id="tbody-input-item">
                                     <tr>
                                         <td>
-                                            <select class="form-select border-0 text-center bg-transparent select-kode-item"
+                                            <select
+                                                class="form-select border-0 text-center bg-transparent select-kode-item"
                                                 required>
                                                 <option value="" disabled selected>- Pilih -</option>
                                                 {% for item in items %}
-                                                <option value="{{ item.kode_item }}">{{ item.kode_item }}</option>
+                                                <option value="{{ item.id }}">{{ item.kode_item }}</option>
                                                 {% endfor %}
                                             </select>
                                         </td>
                                         <td><input type="text"
-                                                class="form-control border-0 text-center bg-transparent input-nama-item" readonly>
+                                                class="form-control border-0 text-center bg-transparent input-nama-item"
+                                                readonly>
                                         </td>
-                                        <td><input type="number" class="form-control border-0 text-center bg-transparent input-qty"
+                                        <td><input type="number"
+                                                class="form-control border-0 text-center bg-transparent input-qty"
                                                 min="1" required></td>
-                                        <td><input type="text" class="form-control border-0 text-center bg-transparent input-ukuran"
+                                        <td><input type="text"
+                                                class="form-control border-0 text-center bg-transparent input-ukuran"
                                                 readonly></td>
                                         <td>
                                             <button type="button"
@@ -138,9 +143,10 @@
                                 </tbody>
                             </table>
                         </div>
-            
+
                         <div class="d-flex justify-content-between align-items-center mt-3">
-                            <button type="button" id="btn-add-row" class="btn btn-sm btn-light border rounded-circle shadow-sm"
+                            <button type="button" id="btn-add-row"
+                                class="btn btn-sm btn-light border rounded-circle shadow-sm"
                                 style="width:32px; height:32px; padding:0;">+</button>
                             <button type="button" id="btn-simpan-split"
                                 class="btn btn-outline-dark px-5 rounded-pill fw-medium shadow-sm">Simpan</button>
@@ -150,7 +156,7 @@
             </div>
 
             <div id="daftar-split-container" class="mt-4"></div>
-            
+
             <div id="final-action-container" class="text-center mt-4 d-none">
                 <form method="POST" action="">
                     {% csrf_token %}
@@ -169,6 +175,7 @@
     [
         {% for item in items %}
             {
+                "id": {{ item.id }},
                 "kode_item": "{{ item.kode_item }}",
                 "nama_item": "{{ item.nama_item }}",
                 "ukuran": "{{ item.panjang | floatformat:1 }} × {{ item.lebar | floatformat:1 }}"
@@ -176,12 +183,13 @@
         {% endfor %}
     ]
 </script>
+<script id="sisa-qty-data" type="application/json">{{ sisa_qty_json|safe }}</script>
 
 <style>
     @media (max-width: 575.98px) {
         .map-container {
-            height: auto !important; 
-            aspect-ratio: 4 / 3 !important; 
+            height: auto !important;
+            aspect-ratio: 4 / 3 !important;
         }
     }
 
@@ -205,14 +213,15 @@
         transition: all 0.2s ease-in-out;
     }
 
-    #table-input-item input:focus, #table-input-item select:focus {
-        background-color: #f8f9fa; 
+    #table-input-item input:focus,
+    #table-input-item select:focus {
+        background-color: #f8f9fa;
         box-shadow: none;
     }
 
-    .split-card { 
-        background: #fff; 
-        transition: all 0.2s; 
+    .split-card {
+        background: #fff;
+        transition: all 0.2s;
     }
 </style>
 
@@ -228,6 +237,7 @@
         const payloadSplitOrder = document.getElementById('payload-split-order');
 
         const itemsData = JSON.parse(document.getElementById('items-data').textContent);
+        const sisaQtyData = JSON.parse(document.getElementById('sisa-qty-data').textContent);
 
         // Array global untuk menyimpan state data pecahan orderan di client-side
         let allSplitDeliveries = [];
@@ -235,7 +245,7 @@
         function getDropdownOptions() {
             let options = '<option value="" disabled selected>- Pilih -</option>';
             itemsData.forEach(item => {
-                options += `<option value="${item.kode_item}">${item.kode_item}</option>`;
+                options += `<option value="${item.id}">${item.kode_item}</option>`;
             });
             return options;
         }
@@ -266,11 +276,11 @@
 
         tbodyInput.addEventListener('change', function (e) {
             if (e.target.classList.contains('select-kode-item')) {
-                const selectedKode = e.target.value;
+                const selectedId = e.target.value;
                 const currentRow = e.target.closest('tr');
                 const namaInput = currentRow.querySelector('.input-nama-item');
                 const ukuranInput = currentRow.querySelector('.input-ukuran');
-                const matchedItem = itemsData.find(item => item.kode_item === selectedKode);
+                const matchedItem = itemsData.find(item => String(item.id) === selectedId);
 
                 if (matchedItem) {
                     namaInput.value = matchedItem.nama_item;
@@ -282,7 +292,7 @@
             }
         });
 
-        // LOGIKA TOMBOL SIMPAN SPLIT (PEMECKAHAN DAFTAR)
+        // LOGIKA TOMBOL SIMPAN SPLIT (PEMECAHAN DAFTAR)
         btnSimpanSplit.addEventListener('click', function () {
             const alamat = document.getElementById('input-alamat').value.trim();
             const penerima = document.getElementById('input-penerima').value.trim();
@@ -298,28 +308,37 @@
 
             // Validasi awal sebelum eksekusi pengurangan qty
             for (let row of rows) {
-                const kodeItem = row.querySelector('.select-kode-item').value;
+                const id = row.querySelector('.select-kode-item').value;
                 const qty = parseInt(row.querySelector('.input-qty').value) || 0;
                 const namaItem = row.querySelector('.input-nama-item').value;
                 const ukuran = row.querySelector('.input-ukuran').value;
 
-                if (!kodeItem || qty <= 0) {
+                if (!id || qty <= 0) {
                     alert('Pastikan Kode Item dipilih dan Qty lebih dari 0.');
                     return;
                 }
 
                 // Validasi tambahan: Cek apakah qty yang diinput melebihi sisa qty di tabel atas
-                if (!validateAvailableQty(kodeItem, qty)) {
-                    alert(`Kuantitas untuk item ${kodeItem} melebihi sisa sediaan di tabel atas.`);
+                if (!validateAvailableQty(id, qty)) {
+                    alert(`Kuantitas untuk item ${namaItem} melebihi sisa sediaan di tabel atas.`);
                     return;
                 }
 
-                selectedItems.push({ kode_item: kodeItem, nama_item: namaItem, qty: qty, ukuran: ukuran });
+                const matchedItem = itemsData.find(item => String(item.id) === id);
+                const kodeItem = matchedItem ? matchedItem.kode_item : '';
+
+                selectedItems.push({
+                    order_detail_id: id,
+                    kode_item: kodeItem,
+                    nama_item: namaItem,
+                    qty: qty,
+                    ukuran: ukuran
+                });
             }
 
             // 1. Kurangi Qty di Tabel Atas secara real-time setelah dipastikan lolos validasi
             selectedItems.forEach(item => {
-                reduceUpperTableQty(item.kode_item, item.qty);
+                reduceUpperTableQty(item.order_detail_id, item.qty);
             });
 
             // 2. Simpan ke data state array
@@ -333,32 +352,34 @@
             resetInputForm();
         });
 
-        // Fungsi pembantu untuk validasi batas maksimum input kuantitas
-        function validateAvailableQty(kodeItem, qtyToReduce) {
+        // Fungsi pembantu untuk validasi batas maksimum input kuantitas (cocokkan by data-id)
+        function validateAvailableQty(id, qtyToReduce) {
             const upperTableRows = document.querySelectorAll('.card-body > .table-responsive:first-of-type tbody tr');
             let isValid = true;
             upperTableRows.forEach(row => {
-                const kodeUpper = row.querySelector('td:first-child').textContent.trim();
-                const badgeUpper = row.querySelector('td:nth-child(3) .badge');
-                if (kodeUpper === kodeItem && badgeUpper) {
-                    let currentQty = parseInt(badgeUpper.textContent) || 0;
-                    if (qtyToReduce > currentQty) {
-                        isValid = false;
+                if (row.getAttribute('data-id') === String(id)) {
+                    const badgeUpper = row.querySelector('td:nth-child(3) .badge');
+                    if (badgeUpper) {
+                        let currentQty = parseInt(badgeUpper.textContent) || 0;
+                        if (qtyToReduce > currentQty) {
+                            isValid = false;
+                        }
                     }
                 }
             });
             return isValid;
         }
 
-        function reduceUpperTableQty(kodeItem, qtyToReduce) {
+        function reduceUpperTableQty(id, qtyToReduce) {
             const upperTableRows = document.querySelectorAll('.card-body > .table-responsive:first-of-type tbody tr');
             upperTableRows.forEach(row => {
-                const kodeUpper = row.querySelector('td:first-child').textContent.trim();
-                const badgeUpper = row.querySelector('td:nth-child(3) .badge');
-                if (kodeUpper === kodeItem && badgeUpper) {
-                    let currentQty = parseInt(badgeUpper.textContent) || 0;
-                    // Mengurangi kuantitas secara matematis numerik murni
-                    badgeUpper.textContent = Math.max(0, currentQty - qtyToReduce);
+                if (row.getAttribute('data-id') === String(id)) {
+                    const badgeUpper = row.querySelector('td:nth-child(3) .badge');
+                    if (badgeUpper) {
+                        let currentQty = parseInt(badgeUpper.textContent) || 0;
+                        // Mengurangi kuantitas secara matematis numerik murni
+                        badgeUpper.textContent = Math.max(0, currentQty - qtyToReduce);
+                    }
                 }
             });
         }
@@ -426,7 +447,7 @@
 
                 // Kembalikan angka Qty ke tabel atas sebelum di-delete
                 canceledDelivery.items.forEach(item => {
-                    reduceUpperTableQty(item.kode_item, -item.qty); // Negatif berati menambahkan kembali stoknya
+                    reduceUpperTableQty(item.order_detail_id, -item.qty); // Negatif berarti menambahkan kembali stoknya
                 });
 
                 allSplitDeliveries.splice(index, 1);
