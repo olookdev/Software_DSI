@@ -1080,7 +1080,9 @@ def cari_produk(request):
 
 def get_order_items(request, order_id):
     order_utama = get_object_or_404(OrderUtama, id=order_id)
-    items_queryset = OrderDetail.objects.filter(order_utama=order_utama)
+    items_queryset = OrderDetail.objects.filter(order_utama=order_utama).order_by(
+        "kode_item"
+    )
 
     daftar_item = []
     for item in items_queryset:
