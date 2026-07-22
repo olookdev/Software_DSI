@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.db.models import Q, Max, Sum
 from django.http import JsonResponse
+from django.conf import settings
 from .models import (
     Suplier,
     Customer,
@@ -1608,19 +1609,11 @@ def update_tgl_cetak(request, order_id):
 
 
 # =========================pengiriman=======================
-# @login_required(login_url='login')
-# def pengiriman(request, order_id):
-#     order = OrderUtama.objects.prefetch_related("items", "customer").get(id=order_id)
-#     items = order.items.all()
-#     context = {
-#         "order": order,
-#         "items": items
-#     }
-#     return render(request, 'inventory/pengiriman.html', context)
 @login_required(login_url="login")
 def pengiriman(request, order_id):
     order = get_object_or_404(
-        OrderUtama.objects.prefetch_related("items", "customer"), id=order_id
+        OrderUtama.objects.prefetch_related("items", "customer"),
+        id=order_id,
     )
 
     if request.method == "POST":
@@ -1639,10 +1632,8 @@ def pengiriman(request, order_id):
             messages.error(request, "Tidak ada data pengiriman untuk disimpan.")
             return redirect("pengiriman", order_id=order_id)
 
-        # Sisa qty AKTUAL dari database (memperhitungkan pengiriman sebelumnya)
         sisa_qty = order.sisa_qty_per_item()
 
-        # Gabungkan total qty yang diminta di seluruh payload per order_detail_id
         total_diminta = {}
         for kirim in daftar_pengiriman:
             if not kirim.get("alamat") or not kirim.get("penerima"):
@@ -1702,7 +1693,7 @@ def pengiriman(request, order_id):
 
         return redirect("pengiriman", order_id=order_id)
 
-    items = order.items.all()
+    items = order.items.all().order_by("kode_item")
     sisa_qty_map = order.sisa_qty_per_item()
 
     for item in items:
@@ -1712,6 +1703,6 @@ def pengiriman(request, order_id):
         "order": order,
         "items": items,
         "sisa_qty_json": json.dumps(sisa_qty_map),
+        "google_maps_api_key": settings.GOOGLE_MAPS_API_KEY,
     }
-    print(context["items"])
     return render(request, "inventory/pengiriman.html", context)

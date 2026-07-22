@@ -4,6 +4,7 @@
 
 {% block content %}
 <div class="container-fluid py-3">
+
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
         <div class="card-body p-4">
 
@@ -50,12 +51,12 @@
 
             <hr style="border: 3px solid #000; opacity: 1;" class="my-4 rounded">
 
-            <div class="row justify-content-center mb-4">
+            <div class="row justify-content-center">
                 <div class="col-12 text-center">
                     <div class="map-container rounded-4 overflow-hidden border shadow-sm d-inline-block w-100"
                         style="height: 400px; max-width: 700px;">
                         <iframe
-                            src="https://maps.google.com/maps?q=-6.175392,106.827153&t=&z=13&ie=UTF8&iwloc=&output=embed"
+                            src="https://maps.google.com/maps?q={{ pengiriman.latitude }},{{ pengiriman.longitude }}&z=15&output=embed"
                             width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"
                             referrerpolicy="no-referrer-when-downgrade">
                         </iframe>
@@ -63,133 +64,161 @@
                 </div>
             </div>
 
-            <div class="text-center mt-4">
-                <button type="button" id="btn-tambah-pengiriman"
-                    class="btn btn-outline-dark px-5 py-2-5 rounded-pill fw-medium shadow-sm transition-all"
-                    style="border-width: 1.5px;">
-                    <i class="bi bi-plus-lg me-2"></i>Pengiriman
-                </button>
-            </div>
-
-            <div id="form-pengiriman-container" class="d-none mt-4 transition-all">
-                <form id="form-split-order" onsubmit="return false;">
-                    <div class="border rounded-4 p-4 shadow-sm bg-white mb-4">
-                        <div class="row g-3 align-items-center mb-3">
-                            <div class="col-10 col-md-6 d-flex align-items-center">
-                                <span class="text-dark fw-medium me-2 text-nowrap">Alamat :</span>
-                                <input type="text" id="input-alamat"
-                                    class="form-control rounded-pill bg-light border-secondary-subtle"
-                                    value="Jl tanah seratus, tangerang selatan, no 1 rt 12 rw 90, 11190" required>
-                            </div>
-                        </div>
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-4">
-                                <div class="d-flex align-items-center">
-                                    <span class="text-dark fw-medium me-2 text-nowrap">Penerima :</span>
-                                    <input type="text" id="input-penerima"
-                                        class="form-control rounded-pill border-0 p-0 text-dark fw-semibold text-capitalize"
-                                        value="{{ order.customer.nama_customer }}" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="d-flex align-items-center">
-                                    <span class="text-dark fw-medium me-2 text-nowrap">No Hp :</span>
-                                    <input type="text" id="input-no-hp"
-                                        class="form-control rounded-pill border-0 p-0 text-dark fw-semibold"
-                                        value="{{ order.customer.telepon }}" required>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="table-responsive rounded-3 mb-3">
-                            <table class="table table-bordered align-middle text-center m-0" id="table-input-item">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th style="width: 25%;">Kode Item</th>
-                                        <th style="width: 35%;">Nama Item</th>
-                                        <th style="width: 15%;">Qty</th>
-                                        <th style="width: 20%;">Ukuran</th>
-                                        <th style="width: 5%;"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-input-item">
-                                    <tr>
-                                        <td>
-                                            <select
-                                                class="form-select border-0 text-center bg-transparent select-kode-item"
-                                                required>
-                                                <option value="" disabled selected>- Pilih -</option>
-                                                {% for item in items %}
-                                                <option value="{{ item.id }}">{{ item.kode_item }}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </td>
-                                        <td><input type="text"
-                                                class="form-control border-0 text-center bg-transparent input-nama-item"
-                                                readonly>
-                                        </td>
-                                        <td><input type="number"
-                                                class="form-control border-0 text-center bg-transparent input-qty"
-                                                min="1" required></td>
-                                        <td><input type="text"
-                                                class="form-control border-0 text-center bg-transparent input-ukuran"
-                                                readonly></td>
-                                        <td>
-                                            <button type="button"
-                                                class="btn btn-sm btn-light border rounded-circle btn-hapus-row d-none"
-                                                style="width:28px; height:28px; padding:0;">-</button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div class="d-flex justify-content-between align-items-center mt-3">
-                            <button type="button" id="btn-add-row"
-                                class="btn btn-sm btn-light border rounded-circle shadow-sm"
-                                style="width:32px; height:32px; padding:0;">+</button>
-                            <button type="button" id="btn-simpan-split"
-                                class="btn btn-outline-dark px-5 rounded-pill fw-medium shadow-sm">Simpan</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-
-            <div id="daftar-split-container" class="mt-4"></div>
-
-            <div id="final-action-container" class="text-center mt-4 d-none">
-                <form method="POST" action="">
-                    {% csrf_token %}
-                    <input type="hidden" name="payload_split_order" id="payload-split-order">
-                    <button type="submit" class="btn btn-success px-5 py-2-5 rounded-pill fw-medium shadow-sm">
-                        Konfirmasi & Proses Semua Pengiriman
-                    </button>
-                </form>
-            </div>
-
         </div>
     </div>
+
+    <div class="text-center mb-4">
+        <button type="button" id="btn-tambah-pengiriman"
+            class="btn btn-outline-dark px-5 py-2-5 rounded-pill fw-medium shadow-sm transition-all"
+            style="border-width: 1.5px;">
+            <i class="bi bi-plus-lg me-2"></i>Pengiriman
+        </button>
+    </div>
+
+    <div id="form-pengiriman-container" class="d-none mb-4 transition-all">
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-body p-4">
+                <form id="form-split-order" onsubmit="return false;">
+
+                    <div class="row g-3 align-items-center mb-3">
+                        <div id="autocomplete-container" class="col-12 col-md-8 d-flex align-items-center gap-2">
+                            <span class="text-dark fw-medium text-nowrap">Alamat :</span>
+                            <input type="hidden" id="input-alamat" name="alamat" required>
+                            <input type="hidden" id="input-lat" name="lat">
+                            <input type="hidden" id="input-lng" name="lng">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <span class="text-dark fw-medium me-2 text-nowrap">Penerima :</span>
+                                <input type="text" id="input-penerima"
+                                    class="form-control rounded-pill border-0 p-0 text-dark fw-semibold text-capitalize"
+                                    value="{{ order.customer.nama_customer }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <span class="text-dark fw-medium me-2 text-nowrap">No Hp :</span>
+                                <input type="text" id="input-no-hp"
+                                    class="form-control rounded-pill border-0 p-0 text-dark fw-semibold"
+                                    value="{{ order.customer.telepon }}" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive rounded-3 mb-3">
+                        <table class="table table-bordered align-middle text-center m-0" id="table-input-item">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 25%;">Kode Item</th>
+                                    <th style="width: 35%;">Nama Item</th>
+                                    <th style="width: 15%;">Qty</th>
+                                    <th style="width: 20%;">Ukuran</th>
+                                    <th style="width: 5%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-input-item">
+                                <tr>
+                                    <td>
+                                        <select class="form-select border-0 text-center bg-transparent select-kode-item"
+                                            required>
+                                            <option value="" disabled selected>- Pilih -</option>
+                                            {% for item in items %}
+                                            <option value="{{ item.id }}">{{ item.kode_item }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td><input type="text"
+                                            class="form-control border-0 text-center bg-transparent input-nama-item"
+                                            readonly>
+                                    </td>
+                                    <td><input type="number"
+                                            class="form-control border-0 text-center bg-transparent input-qty" min="1"
+                                            required></td>
+                                    <td><input type="text"
+                                            class="form-control border-0 text-center bg-transparent input-ukuran"
+                                            readonly></td>
+                                    <td>
+                                        <button type="button"
+                                            class="btn btn-sm btn-light border rounded-circle btn-hapus-row d-none"
+                                            style="width:28px; height:28px; padding:0;">-</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <button type="button" id="btn-add-row"
+                            class="btn btn-sm btn-light border rounded-circle shadow-sm"
+                            style="width:32px; height:32px; padding:0;">+</button>
+                        <button type="button" id="btn-simpan-split"
+                            class="btn btn-outline-dark px-5 rounded-pill fw-medium shadow-sm">Simpan</button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="daftar-split-container" class="mt-4"></div>
+
+    <div id="final-action-container" class="text-center mt-4 d-none">
+        <form method="POST" action="">
+            {% csrf_token %}
+            <input type="hidden" name="payload_split_order" id="payload-split-order">
+            <button type="submit" class="btn btn-success px-5 py-2-5 rounded-pill fw-medium shadow-sm">
+                Konfirmasi & Proses Semua Pengiriman
+            </button>
+        </form>
+    </div>
+
 </div>
 
-<script id="items-data" type="application/json">
-    [
-        {% for item in items %}
-            {
-                "id": {{ item.id }},
-                "kode_item": "{{ item.kode_item }}",
-                "nama_item": "{{ item.nama_item }}",
-                "ukuran": "{{ item.panjang | floatformat:1 }} × {{ item.lebar | floatformat:1 }}"
-            }{% if not forloop.last %},{% endif %}
-        {% endfor %}
-    ]
-</script>
-<script id="sisa-qty-data" type="application/json">{{ sisa_qty_json|safe }}</script>
-
 <style>
+    #autocomplete-container {
+        position: relative;
+        overflow: visible;
+        z-index: 20;
+    }
+
+    #form-pengiriman-container {
+        position: relative;
+        z-index: 10;
+    }
+
+    gmp-place-autocomplete {
+        color-scheme: light;
+        display: block;
+        flex: 1 1 auto;
+        width: 100%;
+        max-width: 380px;
+        min-width: 0;
+
+        border-radius: 50rem;
+        border: 1px solid #dee2e6;
+        background-color: #f8f9fa;
+
+        --gmpx-color-surface: #f8f9fa;
+        --gmpx-font-family-base: inherit;
+        --gmpx-font-size-base: 1rem;
+    }
+
+    gmp-place-autocomplete:focus-within {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    }
+
     @media (max-width: 575.98px) {
         .map-container {
             height: auto !important;
             aspect-ratio: 4 / 3 !important;
+        }
+
+        #autocomplete-container {
+            flex-wrap: wrap;
         }
     }
 
@@ -225,6 +254,25 @@
     }
 </style>
 
+<script id="items-data" type="application/json">
+    [
+        {% for item in items %}
+            {
+                "id": {{ item.id }},
+                "kode_item": "{{ item.kode_item }}",
+                "nama_item": "{{ item.nama_item }}",
+                "ukuran": "{{ item.panjang | floatformat:1 }} × {{ item.lebar | floatformat:1 }}"
+            }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ]
+</script>
+<script id="sisa-qty-data" type="application/json">{{ sisa_qty_json|safe }}</script>
+
+<script>
+    (g => { var h, a, k, p = "The Google Maps JavaScript API", c = "google", l = "importLibrary", q = "__ib__", m = document, b = window; b = b[c] || (b[c] = {}); var d = b.maps || (b.maps = {}), r = new Set, e = new URLSearchParams, u = () => h || (h = new Promise(async (f, n) => { await (a = m.createElement("script")); e.set("libraries", [...r] + ""); for (k in g) e.set(k.replace(/[A-Z]/g, t => "_" + t[0].toLowerCase()), g[k]); e.set("callback", c + ".maps." + q); a.src = `https://maps.${c}apis.com/maps/api/js?` + e; d[q] = f; a.onerror = () => h = n(Error(p + " could not load.")); a.nonce = m.querySelector("script[nonce]")?.nonce || ""; m.head.append(a) })); d[l] ? console.warn(p + " only loads once. Ignoring:", g) : d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n)) })
+        ({ key: "{{ google_maps_api_key }}", v: "weekly" });
+</script>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const btnPengiriman = document.getElementById('btn-tambah-pengiriman');
@@ -241,6 +289,31 @@
 
         // Array global untuk menyimpan state data pecahan orderan di client-side
         let allSplitDeliveries = [];
+
+        async function initAutocomplete() {
+            const { PlaceAutocompleteElement } = await google.maps.importLibrary("places");
+
+            const placeAutocomplete = new PlaceAutocompleteElement({
+                locationBias: { lat: -6.2, lng: 106.816666, radius: 50000 },
+                includedRegionCodes: ["id"],
+            });
+            placeAutocomplete.id = "gmp-autocomplete-input";
+
+            const container = document.getElementById('autocomplete-container');
+            const hiddenAlamat = document.getElementById('input-alamat');
+            container.insertBefore(placeAutocomplete, hiddenAlamat);
+
+            placeAutocomplete.addEventListener("gmp-select", async ({ placePrediction }) => {
+                const place = placePrediction.toPlace();
+                await place.fetchFields({ fields: ["displayName", "formattedAddress", "location"] });
+
+                document.getElementById("input-alamat").value = place.formattedAddress;
+                document.getElementById("input-lat").value = place.location.lat();
+                document.getElementById("input-lng").value = place.location.lng();
+            });
+        }
+
+        initAutocomplete();
 
         function getDropdownOptions() {
             let options = '<option value="" disabled selected>- Pilih -</option>';
