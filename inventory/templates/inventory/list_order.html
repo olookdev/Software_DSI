@@ -263,7 +263,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                </tbody>
+                            </tbody>
                         </table>
                     </div>
 
@@ -305,8 +305,9 @@
                         <button type="submit" class="btn-footer-order text-white border-0 py-2 px-4 rounded" style="background-color: #1A6B8D;">Simpan Order</button>
                         <button type="reset" class="btn-footer-order text-white border-0 py-2 px-4 rounded" style="background-color: #8B0000;">Reset</button>
                         
-                        <a href="#" id="btn_ke_pengiriman" class="btn-footer-order text-white py-2 px-4 rounded d-none"
-                            style="background-color: #E67E22; text-decoration: none">
+                        <a href="#" id="btn_ke_pengiriman" 
+                            class="btn-footer-order text-white text-decoration-none py-2 px-4 rounded d-flex align-items-center justify-content-center" 
+                            style="background-color: #E67E22;">
                             Pengiriman
                         </a>
                         
@@ -1015,7 +1016,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const btnKePengiriman = document.getElementById('btn_ke_pengiriman');
             if (btnKePengiriman) {
                 // Ubah url tujuan ke page pengiriman Django dengan membawa ID order terkait
-                btnKePengiriman.href = `/pengiriman/${idOrder}`;
+                btnKePengiriman.href = `/order/pengiriman/${idOrder}`;
                 // Munculkan tombolnya dengan menghapus class bootstrap 'd-none'
                 btnKePengiriman.classList.remove('d-none');
             }
