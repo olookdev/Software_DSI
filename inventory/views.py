@@ -1666,10 +1666,13 @@ def pengiriman(request, order_id):
 
         try:
             with transaction.atomic():
+
                 for kirim in daftar_pengiriman:
                     pengiriman_obj = Pengiriman.objects.create(
                         order=order,
                         alamat=kirim.get("alamat"),
+                        latitude=kirim.get("lat"),
+                        longitude=kirim.get("lng"),
                         penerima=kirim.get("penerima"),
                         no_hp=kirim.get("no_hp", ""),
                     )
