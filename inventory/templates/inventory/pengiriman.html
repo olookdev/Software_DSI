@@ -5,6 +5,7 @@
 {% block content %}
 <div class="container-fluid py-3">
 
+    <!-- ================= CARD 1: Info Order + Tabel Item + Peta ================= -->
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
         <div class="card-body p-4">
 
@@ -55,11 +56,7 @@
                 <div class="col-12 text-center">
                     <div class="map-container rounded-4 overflow-hidden border shadow-sm d-inline-block w-100"
                         style="height: 400px; max-width: 700px;">
-                        <iframe
-                            src="https://maps.google.com/maps?q={{ pengiriman.latitude }},{{ pengiriman.longitude }}&z=15&output=embed"
-                            width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"
-                            referrerpolicy="no-referrer-when-downgrade">
-                        </iframe>
+                        <div id="map-canvas" style="width: 100%; height: 100%;"></div>
                     </div>
                 </div>
             </div>
@@ -67,6 +64,10 @@
         </div>
     </div>
 
+    <!-- ================= Daftar Split Pengiriman (di antara peta & form alamat) ================= -->
+    <div id="daftar-split-container" class="row g-3 mb-4"></div>
+
+    <!-- ================= Tombol Tambah Pengiriman ================= -->
     <div class="text-center mb-4">
         <button type="button" id="btn-tambah-pengiriman"
             class="btn btn-outline-dark px-5 py-2-5 rounded-pill fw-medium shadow-sm transition-all"
@@ -75,6 +76,7 @@
         </button>
     </div>
 
+    <!-- ================= CARD 2: Form Pengiriman (TANPA overflow-hidden) ================= -->
     <div id="form-pengiriman-container" class="d-none mb-4 transition-all">
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-body p-4">
@@ -163,8 +165,6 @@
         </div>
     </div>
 
-    <div id="daftar-split-container" class="mt-4"></div>
-
     <div id="final-action-container" class="text-center mt-4 d-none">
         <form method="POST" action="">
             {% csrf_token %}
@@ -178,6 +178,7 @@
 </div>
 
 <style>
+    /* ============ Autocomplete: menyatu dengan tema, tidak terpotong ============ */
     #autocomplete-container {
         position: relative;
         overflow: visible;
@@ -192,15 +193,17 @@
     gmp-place-autocomplete {
         color-scheme: light;
         display: block;
-        flex: 1 1 auto;
+        flex: 0 1 auto;
         width: 100%;
         max-width: 380px;
         min-width: 0;
 
+        /* bentuk pil, border, background senada input lain di form */
         border-radius: 50rem;
         border: 1px solid #dee2e6;
         background-color: #f8f9fa;
 
+        /* custom properties resmi Google untuk theming widget */
         --gmpx-color-surface: #f8f9fa;
         --gmpx-font-family-base: inherit;
         --gmpx-font-size-base: 1rem;
@@ -252,6 +255,14 @@
         background: #fff;
         transition: all 0.2s;
     }
+
+    .split-item-row {
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .split-item-row:last-child {
+        border-bottom: none;
+    }
 </style>
 
 <script id="items-data" type="application/json">
@@ -290,6 +301,66 @@
         // Array global untuk menyimpan state data pecahan orderan di client-side
         let allSplitDeliveries = [];
 
+        // Plus Code Google (mis. "QPV8+767, Gg. H. Kasa...") kurang enak dilihat di UI,
+        // jadi disembunyikan dari tampilan card — lat/lng presisi tetap tersimpan utuh di data.
+        function bersihkanAlamatTampilan(alamat) {
+            return alamat.replace(/^[A-Z0-9]{4,7}\+[A-Z0-9]{2,3},?\s*/i, '');
+        }
+
+        let currentAutocompleteEl = null;
+
+        // ============ Peta interaktif + pin per pengiriman ============
+        let mapInstance = null;
+        let deliveryMarkers = [];
+        const DEFAULT_CENTER = { lat: -6.2, lng: 106.816666 };
+
+        async function initMap() {
+            const { Map } = await google.maps.importLibrary("maps");
+            mapInstance = new Map(document.getElementById('map-canvas'), {
+                center: DEFAULT_CENTER,
+                zoom: 12,
+            });
+        }
+        initMap();
+
+        // Menggambar ulang seluruh pin di peta berdasarkan allSplitDeliveries saat ini.
+        // Dipanggil setiap kali daftar berubah (tambah atau batal), jadi otomatis sinkron.
+        function renderMapMarkers() {
+            deliveryMarkers.forEach(marker => marker.setMap(null));
+            deliveryMarkers = [];
+
+            if (!mapInstance) return;
+
+            const bounds = new google.maps.LatLngBounds();
+            let adaTitik = false;
+
+            allSplitDeliveries.forEach((delivery, index) => {
+                if (delivery.lat && delivery.lng) {
+                    const posisi = { lat: delivery.lat, lng: delivery.lng };
+                    const marker = new google.maps.Marker({
+                        position: posisi,
+                        map: mapInstance,
+                        label: String(index + 1),
+                        title: delivery.alamat,
+                    });
+                    deliveryMarkers.push(marker);
+                    bounds.extend(posisi);
+                    adaTitik = true;
+                }
+            });
+
+            if (adaTitik) {
+                mapInstance.fitBounds(bounds);
+                // biar tidak zoom terlalu dekat kalau cuma 1 pin
+                google.maps.event.addListenerOnce(mapInstance, 'bounds_changed', function () {
+                    if (mapInstance.getZoom() > 16) mapInstance.setZoom(16);
+                });
+            } else {
+                mapInstance.setCenter(DEFAULT_CENTER);
+                mapInstance.setZoom(12);
+            }
+        }
+
         async function initAutocomplete() {
             const { PlaceAutocompleteElement } = await google.maps.importLibrary("places");
 
@@ -298,6 +369,7 @@
                 includedRegionCodes: ["id"],
             });
             placeAutocomplete.id = "gmp-autocomplete-input";
+            currentAutocompleteEl = placeAutocomplete;
 
             const container = document.getElementById('autocomplete-container');
             const hiddenAlamat = document.getElementById('input-alamat');
@@ -311,6 +383,19 @@
                 document.getElementById("input-lat").value = place.location.lat();
                 document.getElementById("input-lng").value = place.location.lng();
             });
+        }
+
+        // Google punya PlaceAutocompleteElement belum menyediakan cara mudah untuk
+        // mengosongkan teks yang sudah diketik/dipilih, jadi widget lama dibuang
+        // dan digantikan widget baru yang masih kosong.
+        function resetAutocompleteInput() {
+            if (currentAutocompleteEl && currentAutocompleteEl.parentNode) {
+                currentAutocompleteEl.parentNode.removeChild(currentAutocompleteEl);
+            }
+            document.getElementById('input-alamat').value = '';
+            document.getElementById('input-lat').value = '';
+            document.getElementById('input-lng').value = '';
+            initAutocomplete();
         }
 
         initAutocomplete();
@@ -415,7 +500,13 @@
             });
 
             // 2. Simpan ke data state array
-            const currentDelivery = { alamat, penerima, no_hp: noHp, items: selectedItems };
+            const lat = parseFloat(document.getElementById('input-lat').value);
+            const lng = parseFloat(document.getElementById('input-lng').value);
+            const currentDelivery = {
+                alamat, penerima, no_hp: noHp, items: selectedItems,
+                lat: isNaN(lat) ? null : lat,
+                lng: isNaN(lng) ? null : lng,
+            };
             allSplitDeliveries.push(currentDelivery);
 
             // 3. Render list box baru di bawah
@@ -423,6 +514,9 @@
 
             // 4. Reset input tabel bawah agar bisa dipakai kembali
             resetInputForm();
+
+            // 5. Kosongkan kembali search bar alamat
+            resetAutocompleteInput();
         });
 
         // Fungsi pembantu untuk validasi batas maksimum input kuantitas (cocokkan by data-id)
@@ -460,45 +554,46 @@
         function renderSplitList() {
             daftarSplitContainer.innerHTML = '';
             allSplitDeliveries.forEach((delivery, index) => {
-                // Mapping baris item di dalam list pengiriman terpilih
+                // Mapping baris item di dalam list pengiriman terpilih (bukan table, tapi list card)
                 let itemRowsHtml = '';
                 delivery.items.forEach(item => {
                     itemRowsHtml += `
-                    <tr>
-                        <td>${item.kode_item}</td>
-                        <td>${item.nama_item}</td>
-                        <td><span class="badge bg-light text-dark border">${item.qty}</span></td>
-                        <td>${item.ukuran}</td>
-                    </tr>
+                    <div class="py-2 split-item-row">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="badge bg-light text-dark border rounded-pill px-2 py-1">${item.kode_item}</span>
+                            <span class="fw-medium text-truncate">${item.nama_item}</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-3 text-muted">
+                            <span>Qty: <strong class="text-dark">${item.qty}</strong></span>
+                            <span>${item.ukuran}</span>
+                        </div>
+                    </div>
                 `;
                 });
 
-                // Card list box sesuai mockup pengiriman terpisah
+                // Card list box sesuai mockup pengiriman terpisah — dibungkus kolom biar tidak full-width
+                const col = document.createElement('div');
+                col.className = 'col-12 col-md-6 col-lg-4 d-flex';
+
                 const div = document.createElement('div');
-                div.className = 'border rounded-4 p-4 shadow-sm bg-white mb-3 split-card';
+                div.className = 'd-flex flex-column w-100 border rounded-4 p-3 shadow-sm bg-white split-card';
                 div.innerHTML = `
-                <div class="row g-3 mb-2">
-                    <div class="col-12"><strong>Alamat :</strong> <span class="text-muted">${delivery.alamat}</span></div>
-                    <div class="col-md-6"><strong>Penerima :</strong> <span class="text-muted text-capitalize">${delivery.penerima}</span></div>
-                    <div class="col-md-6"><strong>No HP :</strong> <span class="text-muted">${delivery.no_hp}</span></div>
+                <div class="mb-2 small">
+                    <div class="mb-1"><strong>Alamat :</strong> <span class="text-muted">${bersihkanAlamatTampilan(delivery.alamat)}</span></div>
+                    <div><strong>Penerima :</strong> <span class="text-muted text-capitalize">${delivery.penerima}</span></div>
+                    <div><strong>No HP :</strong> <span class="text-muted">${delivery.no_hp}</span></div>
                 </div>
-                <div class="table-responsive rounded-3 mt-2">
-                    <table class="table table-sm table-bordered m-0 text-center align-middle bg-light">
-                        <thead>
-                            <tr class="table-secondary text-secondary small">
-                                <th>Kode Item</th><th>Nama Item</th><th>Qty</th><th>Ukuran</th>
-                            </tr>
-                        </thead>
-                        <tbody>${itemRowsHtml}</tbody>
-                    </table>
+                <div class="rounded-3 bg-light px-2 split-item-list small">
+                    ${itemRowsHtml}
                 </div>
-                <div class="text-end mt-2">
+                <div class="text-end mt-auto pt-2">
                     <button type="button" class="btn btn-sm btn-link text-danger p-0 text-decoration-none btn-batal-split" data-index="${index}">
-                        <i class="bi bi-trash me-1"></i> Batal Pengiriman Ini
+                        <i class="bi bi-trash me-1"></i> Batal
                     </button>
                 </div>
             `;
-                daftarSplitContainer.appendChild(div);
+                col.appendChild(div);
+                daftarSplitContainer.appendChild(col);
             });
 
             // Tampilkan/Sembunyikan tombol final konfirmasi submit jika ada daftar split
@@ -509,6 +604,9 @@
             } else {
                 finalActionContainer.classList.add('d-none');
             }
+
+            // Sinkronkan pin di peta dengan daftar pengiriman saat ini
+            renderMapMarkers();
         }
 
         // Tombol Batal/Hapus baris pecahan jika user salah input
